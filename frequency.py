@@ -41,13 +41,8 @@ def alg1_basic(v, R, q, m): #q为list
     return W[0,0], G[0,0], seq_r
 
 def optimize(v, R, q, M): #optimize输出期望收益、排序后选择、排序前选择、list长度, q为list
-    W_res = np.array([])
-    G_res = np.array([])
-    seq_res = np.array([])
-    for m in range(1, M + 1):
-        W_res = np.append(W_res, alg1_basic(v, R, q, m)[0])
-        G_res = np.append(G_res, alg1_basic(v, R, q, m)[1])
-        seq_res = np.append(seq_res, set(alg1_basic(v, R, q, m)[2]))
+    alg1_result = [alg1_basic(v, R, q, m) for m in range(1, M + 1)]
+    W_res, G_res, seq_res = list(map(list, zip(*alg1_result)))
     W_m = np.max(W_res)
     G_m = G_res[np.argmax(W_res)]
     seq_m = seq_res[np.argmax(W_res)]
