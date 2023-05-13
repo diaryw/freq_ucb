@@ -2,6 +2,7 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+from benchmark import best_sequence_given_length, evaluate_sequence
 
 N = 35
 M = 7
@@ -13,6 +14,7 @@ T = 3000
 
 def sort_by_gamma(v, R, q): #q单值
     gamma = v * R / (1 - q * (1 - v))
+    # seq is the ordered message ID
     seq = np.argsort(-gamma) #序列seq是排好序的数组中的各元素在原数组中的编号
     v_new = np.array([])
     R_new = np.array([])
@@ -163,11 +165,12 @@ def regret_analysis(v, R, q, M, T, ret_real):
     return regret
 
 
-res = np.zeros([10, T], dtype = float)
-for exptimes in range(10):
-    print('The Exp ', exptimes + 1)
-    r = alg2(N, M, T, R)[1]
-    res[exptimes] = regret_analysis(v, R, q, M, T, r)
+if __name__ == '__main__':
+    res = np.zeros([10, T], dtype = float)
+    for exptimes in range(10):
+        print('The Exp ', exptimes + 1)
+        r = alg2(N, M, T, R)[1]
+        res[exptimes] = regret_analysis(v, R, q, M, T, r)
 
 '''
 t = [x for x in range(T)]
