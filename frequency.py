@@ -2,7 +2,7 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-from benchmark import best_sequence_given_length, evaluate_sequence
+from benchmark import best_sequence_given_length, evaluate_sequence, best_sequence_preserve_order
 
 N = 35
 M = 7
@@ -25,21 +25,19 @@ def sort_by_gamma(v, R, q): #q单值
 
 def alg1_basic(v, R, q, m): #q为list
     v_new, R_new, seq = sort_by_gamma(v, R, q[m])
-    W = np.zeros([m, N - 1], dtype = float)      
-    G = np.full([m, N - 1], set())
-    seq_r = np.array([], dtype = int)
-    for l in range(m - 1, N - 1):
+    W = np.zeros([m, N], dtype = float)
+    G = np.full([m, N], set())
+    for l in range(m - 1, N):
         E_new = (v_new * R_new)[l:]
         W[m - 1, l] = np.max(E_new)
         G[m - 1, l] = set([np.argmax(E_new) + l]) #在原长度数组中的位置
     for k in range(m - 1, 0, -1):
-        for l in range(k - 1, N - m + k - 1):
-            E_new = (v_new * R_new)[l: N - m + k - 1]
-            par = E_new + (1 - v_new[l: N - m + k - 1]) * q[m] * W[k, l: N - m + k - 1]
+        for l in range(k - 1, N - m + k):
+            E_new = (v_new * R_new)[l: N - m + k]
+            par = E_new + (1 - v_new[l: N - m + k]) * q[m] * W[k, (l+1): (N - m + k+1)]
             W[k - 1, l] = np.max(par)
             G[k - 1, l] = set.union(set([np.argmax(par) + l]), G[k, np.argmax(par) + l + 1]) #在原长度数组中的位置
-    for ind in G[0,0]:
-        seq_r = np.append(seq_r, seq[ind])
+    seq_r = seq[sorted(G[0,0])]
     return W[0,0], G[0,0], seq_r
 
 def optimize(v, R, q, M): #optimize输出期望收益、排序后选择、排序前选择、list长度, q为list

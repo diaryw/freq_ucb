@@ -73,6 +73,23 @@ def get_all_sequence(elements: list, seq_len: int):
     
     return output
 
+def get_all_ordered_subsequence(elements: list, seq_len: int):
+    output = []
+    if seq_len==0:
+        return output
+    if seq_len==1:
+        return [[x] for x in elements]
+    
+    # split into three parts, before current ,current and rest
+    subseq_len = seq_len - 1
+    for ele_index in range(len(elements)-1):
+        current_ele = elements[ele_index]
+        rest_ele = [elements[i] for i in range(len(elements)) if i>ele_index]
+        for subseq in get_all_ordered_subsequence(rest_ele,subseq_len):
+            output.append([current_ele] + subseq)
+
+    return output
+
 def best_sequence_given_length(v,R,q,m):
     """
     Parameters
@@ -92,6 +109,30 @@ def best_sequence_given_length(v,R,q,m):
     payoff = [evaluate_sequence(seq,v,R,q) for seq in seq_sets]
     max_id = np.argmax(payoff)
     return payoff[max_id], seq_sets[max_id]
+
+def best_sequence_preserve_order(v,R,q,M):
+    def sort_by_gamma(v, R, q): #q单值
+        gamma = v * R / (1 - q * (1 - v))
+        # seq is the ordered message ID
+        seq = np.argsort(-gamma) #序列seq是排好序的数组中的各元素在原数组中的编号
+        v_new = np.array([])
+        R_new = np.array([])
+        for i in range(len(seq)):
+            v_new = np.append(v_new, v[seq[i]])
+            R_new = np.append(R_new, R[seq[i]])
+        return v_new, R_new, seq
+    
+    payoff_list = []
+    seq_list = []
+    for m in range(1,M+1):
+        gamma_ordered = sort_by_gamma(v,R,q[m])[2]
+        seq_sets = get_all_ordered_subsequence(gamma_ordered,m)
+        payoff = [evaluate_sequence(seq,v,R,q) for seq in seq_sets]
+        max_id = np.argmax(payoff)
+        payoff_list.append(payoff[max_id])
+        seq_list.append(seq_sets[max_id])
+    max_num_id = np.argmax(payoff_list)
+    return payoff_list[max_num_id], seq_list[max_num_id]
 
 if __name__ == '__main__':
     N = 35
