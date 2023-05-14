@@ -1,11 +1,53 @@
 import numpy as np
-import random
 import math
 from base import RecommendationEnv, BaseAlgorithm
+from frequency import optimize, alg1_basic
 
 class EpsilonGreedy(BaseAlgorithm):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self,env,epsilon = 0.05) -> None:
+        super().__init__(env=env)
+        self.epsilon = epsilon
+
+        self.inf = 1e-3 # minimum value for probabilities
+        self.v_hat = np.full(self.num_message, self.inf)
+        # the first element of q is not used
+        self.q_hat = np.full(self.num_maxsent + 1, self.inf)
+
+    def _greedy_action(self):
+        optimal_m = optimize(self.v_hat,self.reward_per_message,self.q_hat,self.num_maxsent)[3]
+        def get_sequence(m):
+            return alg1_basic(self.v_hat,self.reward_per_message,self.q_hat,m)[2]
+        return optimal_m, get_sequence
+
+    def _random_action(self):
+        v_random = np.random.rand(self.num_message)
+        q_random = -np.sort(-np.random.rand(self.num_maxsent + 1))
+        optimal_m = optimize(v_random,self.reward_per_message,q_random,self.num_maxsent)[3]
+        def get_sequence(m):
+            return alg1_basic(v_random,self.reward_per_message,q_random,m)[2]
+        return optimal_m, get_sequence
+
+    def action(self):
+        """
+        take actions
+
+        Return
+        ----------
+        optimal_m : the optimal number of messages to send to new customer
+        get_sequence: callable, input number and output optimal sequence of messages 
+        """
+        if np.random.rand()<self.epsilon:
+            return self._random_action()
+        else:
+            return self._greedy_action()
+
+    def update_param(self) -> None:
+        total_fb, total_click, tilde_noclick, tilde_leave = self.env.statistic
+        n_continue = tilde_noclick - tilde_leave
+        self.v_hat = np.divide(total_click, total_fb, out=self.v_hat, where=(total_fb!=0))
+        self.v_hat = np.maximum(self.v_hat,self.inf)
+        self.q_hat = np.divide(n_continue, tilde_noclick, out=self.q_hat, where=(tilde_noclick!=0))
+        self.q_hat = np.maximum(self.q_hat,self.inf)
 
 def evaluate_sequence(seq,v,R,q):
     m = len(seq)
@@ -96,19 +138,23 @@ def best_sequence_preserve_order(v,R,q,M):
     return payoff_list[max_num_id], seq_list[max_num_id]
 
 if __name__ == '__main__':
+    import random
     N = 35
     M = 7
     v = np.array([random.normalvariate(0.0597,0.0185) for i in range(N)])
     R = np.array([random.uniform(1, 2) for i in range(N)])
     q = np.array([1.1 * math.e ** (-0.03 * i) / (1 + math.e ** (-0.03 * i)) for i in range(M + 1)])
+    D = 200
 
     env = RecommendationEnv(
         num_message=N,
         num_maxsent=M,
         attraction_prob=v,
         reward_per_message=R,
-        abandonment_prob=q
+        q_prob=q,
+        time_window=D,
     )
 
-    model = EpsilonGreedy()
-    model.action()
+    model = EpsilonGreedy(env)
+    cumulative_rewards = model.learn(timesteps=1000)
+    print('rewards',cumulative_rewards[-1])
