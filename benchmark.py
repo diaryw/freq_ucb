@@ -4,14 +4,36 @@ from base import RecommendationEnv, BaseAlgorithm
 from frequency import optimize, alg1_basic
 
 class EpsilonGreedy(BaseAlgorithm):
-    def __init__(self,env,epsilon = 0.05) -> None:
-        super().__init__(env=env)
-        self.epsilon = epsilon
+    """
+    Epsilon-greedy for cascading bandit with delayed feedback
 
-        self.inf = 1e-3 # minimum value for probabilities
-        self.v_hat = np.full(self.num_message, self.inf)
+    Parameters
+    ----------
+    env : environment to interact
+    epsilon : the epsilon value for non-decaying epislon-greedy
+    initial_val : initial values for probability estimation. By default = None: vanilla 
+        algorithm, if set a larger value: Epsilon-greedy with optimistic initialization
+    decaying : whether to use decaying epsilon value, by default = False
+    """
+    def __init__(self,env,epsilon = 0.05,initial_val=None, decaying = False) -> None:
+        super().__init__(env=env)
+        # epsilon = 0: greedy, !=0: epsilon-greedy
+        self.epsilon = epsilon
+        # minimum value for probabilities
+        self.inf = 1e-3
+        if initial_val is None:
+            # zero initialization
+            self.initial_val = self.inf
+        else:
+            # optimistic initialization
+            self.initial_val = initial_val
+        self.v_hat = np.full(self.num_message, self.initial_val)
         # the first element of q is not used
-        self.q_hat = np.full(self.num_maxsent + 1, self.inf)
+        self.q_hat = np.full(self.num_maxsent + 1, self.initial_val)
+        self.decaying = decaying
+        # rough initailization for decaying
+        self.min_gap = 1e-2
+        self.c = 1e-4
 
     def _greedy_action(self):
         optimal_m = optimize(self.v_hat,self.reward_per_message,self.q_hat,self.num_maxsent)[3]
@@ -48,6 +70,9 @@ class EpsilonGreedy(BaseAlgorithm):
         self.v_hat = np.maximum(self.v_hat,self.inf)
         self.q_hat = np.divide(n_continue, tilde_noclick, out=self.q_hat, where=(tilde_noclick!=0))
         self.q_hat = np.maximum(self.q_hat,self.inf)
+        if self.decaying:
+            self.epsilon = np.min([1,self.c*self.num_message/(self.min_gap**2 * (self.env.time+1))])
+
 
 def evaluate_sequence(seq,v,R,q):
     m = len(seq)

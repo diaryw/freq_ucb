@@ -173,6 +173,7 @@ class BaseAlgorithm(ABC):
         """
         learn for timesteps and return cumulative rewards
         """
+        self.total_timesteps = timesteps
         rewards_history = []
         for _ in range(timesteps):
             reward = self.step()

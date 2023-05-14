@@ -53,7 +53,7 @@ def optimize(v, R, q, M): #optimize输出期望收益、排序后选择、排序
     v = np.array([random.normalvariate(0.0597,0.0185) for i in range(N)])
     R = np.array([random.uniform(1, 5) for i in range(N)])
     q = np.array([1.1 * math.e ** (-0.03 * i) / (1 + math.e ** (-0.03 * i)) for i in range(M + 1)]) # q[0] = 1 不用
-    print(optimize(v, R, q, M))'''
+    print(optimize(v, R, q, M))
 
 def generate_fb(m, v, info):
     temp1 = random.uniform(0,1)
@@ -138,6 +138,21 @@ def alg2(N, M, T, R):
 
 #Test for alg 2
 #print(alg2(N, M, 100, R))
+'''
+
+class UCB(BaseAlgorithm):
+    """
+    UCB based algorithm for cascading bandit with delayed feedback
+
+    Parameters
+    ----------
+    alpha : an coefficient for confidence interval for ucb value, 
+        by default = 1: UCB1-like algorithm
+    """
+    def __init__(self, env, alpha: float = 1.0) -> None:
+        super().__init__(env)
+        self.alpha = alpha
+
 
 def regret_analysis(v, R, q, M, T, ret_real):
     seq_theo = optimize(v, R, q, M)[2]
@@ -158,6 +173,7 @@ def regret_analysis(v, R, q, M, T, ret_real):
     return regret
 
 
+'''
 if __name__ == '__main__':
     res = np.zeros([10, T], dtype = float)
     for exptimes in range(10):
@@ -165,7 +181,6 @@ if __name__ == '__main__':
         r = alg2(N, M, T, R)[1]
         res[exptimes] = regret_analysis(v, R, q, M, T, r)
 
-'''
 t = [x for x in range(T)]
 avg = []
 upp = []
