@@ -1,46 +1,7 @@
-from abc import ABC, abstractmethod
 import numpy as np
 import random
 import math
-
-
-class RecommendationEnv:
-    def __init__(self,num_message,num_maxsent,attraction_prob,reward_per_message,
-                 abandonment_prob) -> None:
-        # N
-        self.num_message = num_message
-        # M
-        self.num_maxsent = num_maxsent
-        # v
-        self.attraction_prob = attraction_prob
-        # R
-        self.reward_per_message = reward_per_message
-        # q(m)
-        self.abandonment_prob = abandonment_prob
-        self.timestep = 0
-
-    def _setup(self) -> None:
-        pass
-
-    def _get_feedback(self) -> None:
-        """get feedback for current active customer
-        """
-        pass
-
-    def _customer_arrival(self) -> None:
-        pass
-
-class BaseAlgorithm(ABC):
-    def __init__(self) -> None:
-        pass
-    
-    @abstractmethod
-    def action(self):
-        pass
-
-    def step(self):
-        # take action from env 
-        return 0
+from base import RecommendationEnv, BaseAlgorithm
 
 class EpsilonGreedy(BaseAlgorithm):
     def __init__(self) -> None:

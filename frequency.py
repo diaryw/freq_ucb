@@ -2,7 +2,7 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-from benchmark import best_sequence_given_length, evaluate_sequence, best_sequence_preserve_order
+from base import BaseAlgorithm, RecommendationEnv
 
 N = 35
 M = 7
@@ -127,7 +127,7 @@ def alg2(N, M, T, R):
                         break
                 if next_sent[r] != 0:
                     sel = G[selind]
-                    selected[r][times] = sel
+                    selected[r][times[r]] = sel
                     selres = np.append(selres,(t, r, sel))
                     times[r] += 1
                     next_sent[r] += int(D / listm[r])
