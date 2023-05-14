@@ -2,7 +2,7 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-from base import BaseAlgorithm, RecommendationEnv
+from base import BaseAlgorithm, RecommendationEnv, evaluate_sequence
 
 N = 35
 M = 7
@@ -152,29 +152,73 @@ class UCB(BaseAlgorithm):
     def __init__(self, env, alpha: float = 1.0) -> None:
         super().__init__(env)
         self.alpha = alpha
+        self.inf = 1e-3
+        self.initial_val = 0.99
+        self.v_hat = np.full(self.num_message, self.initial_val)
+        self.v_ucb = np.full(self.num_message, self.initial_val)
+        # the first element of q is not used
+        self.q_hat = np.full(self.num_maxsent + 1, self.initial_val)
+        self.q_ucb = np.full(self.num_maxsent + 1, self.initial_val)
 
+    def action(self):
+        """
+        take actions
 
-def regret_analysis(v, R, q, M, T, ret_real):
-    seq_theo = optimize(v, R, q, M)[2]
-    m_theo = optimize(v, R, q, M)[3]
-    E_ret = np.zeros(m_theo, dtype = float)
-    w = np.full(m_theo, 1.0)
-    E_ret[0] = v[seq_theo[0]] * R[seq_theo[0]]
-    for i in range(1, m_theo):
-        w[i] = w[i - 1] * (1 - v[seq_theo[i - 1]]) * q[m_theo]
-        E_ret[i] = E_ret[i - 1] + w[i] * v[seq_theo[i]]*R[seq_theo[i]]
-    ret_theo = np.zeros(T, dtype = float)
-    ret_theo[0] = E_ret[0]
-    for t in range(1, T):
-        ret_theo[t] = ret_theo[t - 1]
-        for i in range(min(t, m_theo)):
-            ret_theo[t] += E_ret[i]
-    regret = ret_theo - ret_real
+        Return
+        ----------
+        optimal_m : the optimal number of messages to send to new customer
+        get_sequence: callable, input number and output optimal sequence of messages 
+        """
+        optimal_m = optimize(self.v_ucb,self.reward_per_message,self.q_ucb,self.num_maxsent)[3]
+        def get_sequence(m):
+            return alg1_basic(self.v_ucb,self.reward_per_message,self.q_ucb,m)[2]
+        return optimal_m, get_sequence
+
+    def update_param(self) -> None:
+        t = self.env.time + 1
+        total_fb, total_click, tilde_noclick, tilde_leave = self.env.statistic
+        n_continue = tilde_noclick - tilde_leave
+        self.v_hat = np.divide(total_click, total_fb, out=self.v_hat, where=(total_fb!=0))
+        self.v_ucb = self.v_hat + self.alpha * np.sqrt(2*np.log(t)/(total_fb + 1e-7))
+        self.v_ucb = np.minimum(self.v_ucb, 1.0)
+        self.q_hat = np.divide(n_continue, tilde_noclick, out=self.q_hat, where=(tilde_noclick!=0))
+        self.q_ucb = self.q_hat + np.sqrt(2*np.log(t)/(tilde_noclick + 1e-7))
+        self.q_ucb = np.minimum(self.q_ucb, 1.0)
+
+def regret_analysis(v, R, q, M, ret_real):
+    """
+    ret_real : reward at each time
+    """
+    _,_, seq_theo, m_theo = optimize(v, R, q, M)
+    payoff_theo = evaluate_sequence(seq_theo, v,R,q)
+    instant_regret = payoff_theo - np.array(ret_real)
+    regret = np.cumsum(instant_regret)
     return regret
 
+if __name__ == '__main__':
+    import random
+    N = 35
+    M = 7
+    v = np.array([random.normalvariate(0.0597,0.0185) for i in range(N)])
+    R = np.array([random.uniform(1, 2) for i in range(N)])
+    q = np.array([1.1 * math.e ** (-0.03 * i) / (1 + math.e ** (-0.03 * i)) for i in range(M + 1)])
+    D = 200
+
+    env = RecommendationEnv(
+        num_message=N,
+        num_maxsent=M,
+        attraction_prob=v,
+        reward_per_message=R,
+        q_prob=q,
+        time_window=D,
+    )
+
+    model = UCB(env,alpha=0.001)
+    _rewards = model.learn(timesteps=10000)
+    plt.plot(_rewards[1])
+    plt.show()
 
 '''
-if __name__ == '__main__':
     res = np.zeros([10, T], dtype = float)
     for exptimes in range(10):
         print('The Exp ', exptimes + 1)
