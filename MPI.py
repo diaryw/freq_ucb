@@ -7,11 +7,11 @@ from frequency import UCB, regret_analysis, optimize
 from benchmark import EpsilonGreedy
 from time import time
 
-MPItaskID = int(getattr(os.environ,'SLURM_PROCID',0))
+MPItaskID = int(os.environ['SLURM_PROCID'])
 
 N,M,v,R,q = load_noncontextual()
 D = 200
-T = 30000
+T = 16000
 num_parts = 5
 
 def run_and_save(method_cls:callable,method_name:str,param_name:str,param_val):
@@ -102,6 +102,7 @@ for initial_val in initial_list:
         'param_val': initial_val,
     }
     kwargs_list.append(temp_kwargs)
+
 
 if __name__=='__main__':
     # 60 tasks (each MPI for 200 times) in total, each task run loop_num times

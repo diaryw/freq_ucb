@@ -149,7 +149,7 @@ class UCB(BaseAlgorithm):
     alpha : an coefficient for confidence interval for ucb value, 
         by default = 1: UCB1-like algorithm
     """
-    def __init__(self, env, alpha: float = 1.0) -> None:
+    def __init__(self, env, alpha: float = 1.0, clip_ucb: bool =True) -> None:
         super().__init__(env)
         self.alpha = alpha
         self.inf = 1e-3
@@ -159,6 +159,7 @@ class UCB(BaseAlgorithm):
         # the first element of q is not used
         self.q_hat = np.full(self.num_maxsent + 1, self.initial_val)
         self.q_ucb = np.full(self.num_maxsent + 1, self.initial_val)
+        self.clip_ucb = clip_ucb
 
     def action(self):
         """
@@ -180,10 +181,11 @@ class UCB(BaseAlgorithm):
         n_continue = tilde_noclick - tilde_leave
         self.v_hat = np.divide(total_click, total_fb, out=self.v_hat, where=(total_fb!=0))
         self.v_ucb = self.v_hat + self.alpha * np.sqrt(2*np.log(t)/(total_fb + 1e-7))
-        self.v_ucb = np.minimum(self.v_ucb, 1.0)
         self.q_hat = np.divide(n_continue, tilde_noclick, out=self.q_hat, where=(tilde_noclick!=0))
-        self.q_ucb = self.q_hat + np.sqrt(2*np.log(t)/(tilde_noclick + 1e-7))
-        self.q_ucb = np.minimum(self.q_ucb, 1.0)
+        self.q_ucb = self.q_hat + self.alpha * np.sqrt(2*np.log(t)/(tilde_noclick + 1e-7))
+        if self.clip_ucb:
+            self.v_ucb = np.minimum(self.v_ucb, 1.0)
+            self.q_ucb = np.minimum(self.q_ucb, 1.0)
 
 def regret_analysis(v, R, q, M, ret_real):
     """
