@@ -22,7 +22,7 @@ def merge_files(filenamepattern):
     else:
         print(filenamepattern, 'No files found.')
 
-method_list = ['UCB','UCBclip','UCBnoclip','OptimisticGreedy','EpsilonGreedy','DecayingEpsilonGreedy']
+method_list = ['DecayingEpsilonGreedy','LinearDecayingUCB']
 for method in method_list:
     merge_files(f'noncontextual_{method}')
 

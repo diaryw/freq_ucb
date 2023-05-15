@@ -11,6 +11,8 @@ param_for_method = {
     'EpsilonGreedy': 'epsilon',
     'DecayingEpsilonGreedy': 'c',
     'UCB': 'confidence_level',
+    'DecayingUCB': 'confidence_level',
+    'LinearDecayingUCB': 'confidence_level',
 }
 
 def mean_confidence_interval(data,confidence=0.95):
@@ -73,7 +75,7 @@ def get_total_rewards(method:str):
     return param_vals,total_rewards
 
 def plot_rewards_vs_param():
-    for method in method_param.keys():
+    for method in param_for_method.keys():
         param_vals,total_rewards = get_total_rewards(method)
         plt.plot(param_vals,total_rewards,label=method)
     plt.legend(loc='best',fancybox=False)
@@ -82,6 +84,7 @@ def plot_rewards_vs_param():
     plt.title('Cascading Bandit Experiment')
     plt.show()
 
+# find optimal parameters for each algorithm
 plot_rewards_vs_param()
 
 # plot regret for different methods vs time
@@ -89,7 +92,7 @@ method_param = {
     'OptimisticGreedy': 0.9,
     'EpsilonGreedy': 0.1,
     'DecayingEpsilonGreedy': 1e-4,
-    'UCB': 0.1,
+    'DecayingUCB': 0.1,
 }
 data_for_plot = process_data_for_plot(method_param,use_expected=False)
 # plot

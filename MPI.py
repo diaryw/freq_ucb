@@ -12,11 +12,11 @@ MPItaskID = int(os.environ['SLURM_PROCID'])
 N,M,v,R,q = load_noncontextual()
 D = 200
 T = 16000
-num_parts = 5
+num_parts = 8
 
-class UCBnoclip(UCB):
+class LinearDecayingUCB(UCB):
     def __init__(self, env, confidence_level: float = 1) -> None:
-        super().__init__(env, confidence_level, clip_ucb = False)
+        super().__init__(env, confidence_level, clip_ucb = True, decaying = True, decaying_mode = 'linear')
 
 def run_and_save(method_cls:callable,method_name:str,param_name:str,param_val):
     start = time()
@@ -60,40 +60,19 @@ def run_and_save(method_cls:callable,method_name:str,param_name:str,param_val):
     end = time()
     print('Running time', end-start)
 
-confidence_level_list = list(np.arange(1,6)*0.001) + list(np.arange(1,6)*0.01) + \
-    list(np.arange(1,6)*0.1) + list(np.arange(1,6)*1) 
-epsilon_list = np.arange(11,20)*0.01
-c_list = np.arange(1,6)*1e-3
+confidence_level_list = [x*10**i for i in range(-1,5) for x in range(1,6) ]
+epsilon_list = np.arange(0,21)*0.01
+c_list = [x*10**i for i in range(-2,3) for x in range(1,6)]
 initial_list = np.arange(5,11)*0.1
 
 kwargs_list = []
 # UCB
 for confidence_level in confidence_level_list:
     temp_kwargs = {
-        'method_cls': UCB,
-        'method_name': 'UCBclip',
+        'method_cls': LinearDecayingUCB,
+        'method_name': 'LinearDecayingUCB',
         'param_name': 'confidence_level',
         'param_val': confidence_level,
-    }
-    kwargs_list.append(temp_kwargs)
-
-# UCB no clip
-for confidence_level in confidence_level_list:
-    temp_kwargs = {
-        'method_cls': UCBnoclip,
-        'method_name': 'UCBnoclip',
-        'param_name': 'confidence_level',
-        'param_val': confidence_level,
-    }
-    kwargs_list.append(temp_kwargs)
-
-# epsilon greedy
-for epsilon in epsilon_list:
-    temp_kwargs = {
-        'method_cls': EpsilonGreedy,
-        'method_name': 'EpsilonGreedy',
-        'param_name': 'epsilon',
-        'param_val': epsilon,
     }
     kwargs_list.append(temp_kwargs)
 
@@ -108,6 +87,17 @@ for c in c_list:
     kwargs_list.append(temp_kwargs)
 
 """
+# epsilon greedy
+for epsilon in epsilon_list:
+    temp_kwargs = {
+        'method_cls': EpsilonGreedy,
+        'method_name': 'EpsilonGreedy',
+        'param_name': 'epsilon',
+        'param_val': epsilon,
+    }
+    kwargs_list.append(temp_kwargs)
+
+
 # greedy with optimistic initialzation
 for initial_val in initial_list:
     temp_kwargs = {

@@ -5,7 +5,7 @@
 #SBATCH --time=12:00:00
 #SBATCH --mail-user=zhangyanking00@gmail.com
 #SBATCH --mail-type=ALL
-#SBATCH --array=0-4
+#SBATCH --array=0-7
 #SBATCH --output=R-%x.%j.out
 #SBATCH --error=R-%x.%j.err\n
 
