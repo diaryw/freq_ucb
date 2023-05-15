@@ -4,14 +4,6 @@ import matplotlib.pyplot as plt
 import math
 from base import BaseAlgorithm, RecommendationEnv, evaluate_sequence
 
-N = 35
-M = 7
-v = np.array([random.normalvariate(0.0597,0.0185) for i in range(N)])
-R = np.array([random.uniform(1, 2) for i in range(N)])
-q = np.array([1.1 * math.e ** (-0.03 * i) / (1 + math.e ** (-0.03 * i)) for i in range(M + 1)]) # q[0] = 1 不用
-D = 200
-T = 3000
-
 def sort_by_gamma(v, R, q): #q单值
     gamma = v * R / (1 - q * (1 - v))
     # seq is the ordered message ID
@@ -146,7 +138,7 @@ class UCB(BaseAlgorithm):
 
     Parameters
     ----------
-    alpha : an coefficient for confidence interval for ucb value, 
+    alpha : width for confidence interval for ucb value, 
         by default = 1: UCB1-like algorithm
     """
     def __init__(self, env, alpha: float = 1.0, clip_ucb: bool =True) -> None:

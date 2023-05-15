@@ -14,6 +14,10 @@ D = 200
 T = 16000
 num_parts = 5
 
+class UCBnoclip(UCB):
+    def __init__(self, env, alpha: float = 1) -> None:
+        super().__init__(env, alpha, clip_ucb = False)
+
 def run_and_save(method_cls:callable,method_name:str,param_name:str,param_val):
     start = time()
     param_dict = {param_name: param_val}
@@ -58,8 +62,8 @@ def run_and_save(method_cls:callable,method_name:str,param_name:str,param_val):
 
 alpha_list = list(np.arange(1,6)*0.001) + list(np.arange(1,6)*0.01) + \
     list(np.arange(1,6)*0.1) + list(np.arange(1,6)*1) 
-epsilon_list = np.arange(0,11)*0.01
-c_list = np.arange(1,6)*1e-4
+epsilon_list = np.arange(11,20)*0.01
+c_list = np.arange(1,6)*1e-3
 initial_list = np.arange(5,11)*0.1
 
 kwargs_list = []
@@ -67,7 +71,17 @@ kwargs_list = []
 for alpha in alpha_list:
     temp_kwargs = {
         'method_cls': UCB,
-        'method_name': 'UCB',
+        'method_name': 'UCBclip',
+        'param_name': 'alpha',
+        'param_val': alpha,
+    }
+    kwargs_list.append(temp_kwargs)
+
+# UCB no clip
+for alpha in alpha_list:
+    temp_kwargs = {
+        'method_cls': UCBnoclip,
+        'method_name': 'UCBnoclip',
         'param_name': 'alpha',
         'param_val': alpha,
     }
@@ -93,6 +107,7 @@ for c in c_list:
     }
     kwargs_list.append(temp_kwargs)
 
+"""
 # greedy with optimistic initialzation
 for initial_val in initial_list:
     temp_kwargs = {
@@ -102,7 +117,7 @@ for initial_val in initial_list:
         'param_val': initial_val,
     }
     kwargs_list.append(temp_kwargs)
-
+"""
 
 if __name__=='__main__':
     # 60 tasks (each MPI for 200 times) in total, each task run loop_num times
