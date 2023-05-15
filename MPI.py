@@ -15,8 +15,8 @@ T = 16000
 num_parts = 5
 
 class UCBnoclip(UCB):
-    def __init__(self, env, alpha: float = 1) -> None:
-        super().__init__(env, alpha, clip_ucb = False)
+    def __init__(self, env, confidence_level: float = 1) -> None:
+        super().__init__(env, confidence_level, clip_ucb = False)
 
 def run_and_save(method_cls:callable,method_name:str,param_name:str,param_val):
     start = time()
@@ -60,7 +60,7 @@ def run_and_save(method_cls:callable,method_name:str,param_name:str,param_val):
     end = time()
     print('Running time', end-start)
 
-alpha_list = list(np.arange(1,6)*0.001) + list(np.arange(1,6)*0.01) + \
+confidence_level_list = list(np.arange(1,6)*0.001) + list(np.arange(1,6)*0.01) + \
     list(np.arange(1,6)*0.1) + list(np.arange(1,6)*1) 
 epsilon_list = np.arange(11,20)*0.01
 c_list = np.arange(1,6)*1e-3
@@ -68,22 +68,22 @@ initial_list = np.arange(5,11)*0.1
 
 kwargs_list = []
 # UCB
-for alpha in alpha_list:
+for confidence_level in confidence_level_list:
     temp_kwargs = {
         'method_cls': UCB,
         'method_name': 'UCBclip',
-        'param_name': 'alpha',
-        'param_val': alpha,
+        'param_name': 'confidence_level',
+        'param_val': confidence_level,
     }
     kwargs_list.append(temp_kwargs)
 
 # UCB no clip
-for alpha in alpha_list:
+for confidence_level in confidence_level_list:
     temp_kwargs = {
         'method_cls': UCBnoclip,
         'method_name': 'UCBnoclip',
-        'param_name': 'alpha',
-        'param_val': alpha,
+        'param_name': 'confidence_level',
+        'param_val': confidence_level,
     }
     kwargs_list.append(temp_kwargs)
 

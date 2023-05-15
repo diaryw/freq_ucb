@@ -10,7 +10,7 @@ param_for_method = {
     'OptimisticGreedy': 'initial_val',
     'EpsilonGreedy': 'epsilon',
     'DecayingEpsilonGreedy': 'c',
-    'UCB': 'alpha',
+    'UCB': 'confidence_level',
 }
 
 def mean_confidence_interval(data,confidence=0.95):

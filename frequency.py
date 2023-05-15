@@ -16,6 +16,7 @@ def sort_by_gamma(v, R, q): #q单值
     return v_new, R_new, seq
 
 def alg1_basic(v, R, q, m): #q为list
+    N = len(v)
     v_new, R_new, seq = sort_by_gamma(v, R, q[m])
     W = np.zeros([m, N], dtype = float)
     G = np.full([m, N], set())
@@ -138,12 +139,12 @@ class UCB(BaseAlgorithm):
 
     Parameters
     ----------
-    alpha : width for confidence interval for ucb value, 
+    c : width for confidence interval for ucb value, 
         by default = 1: UCB1-like algorithm
     """
-    def __init__(self, env, alpha: float = 1.0, clip_ucb: bool =True) -> None:
+    def __init__(self, env, confidence_level: float = 1.0, clip_ucb: bool =True) -> None:
         super().__init__(env)
-        self.alpha = alpha
+        self.confidence_level = confidence_level
         self.inf = 1e-3
         self.initial_val = 0.99
         self.v_hat = np.full(self.num_message, self.initial_val)
@@ -172,9 +173,9 @@ class UCB(BaseAlgorithm):
         total_fb, total_click, tilde_noclick, tilde_leave = self.env.statistic
         n_continue = tilde_noclick - tilde_leave
         self.v_hat = np.divide(total_click, total_fb, out=self.v_hat, where=(total_fb!=0))
-        self.v_ucb = self.v_hat + self.alpha * np.sqrt(2*np.log(t)/(total_fb + 1e-7))
+        self.v_ucb = self.v_hat + self.confidence_level * np.sqrt(2*np.log(t)/(total_fb + 1e-7))
         self.q_hat = np.divide(n_continue, tilde_noclick, out=self.q_hat, where=(tilde_noclick!=0))
-        self.q_ucb = self.q_hat + self.alpha * np.sqrt(2*np.log(t)/(tilde_noclick + 1e-7))
+        self.q_ucb = self.q_hat + self.confidence_level * np.sqrt(2*np.log(t)/(tilde_noclick + 1e-7))
         if self.clip_ucb:
             self.v_ucb = np.minimum(self.v_ucb, 1.0)
             self.q_ucb = np.minimum(self.q_ucb, 1.0)
@@ -207,7 +208,7 @@ if __name__ == '__main__':
         time_window=D,
     )
 
-    model = UCB(env,alpha=0.001)
+    model = UCB(env,confidence_level=0.001)
     _rewards = model.learn(timesteps=10000)
     plt.plot(_rewards[1])
     plt.show()
