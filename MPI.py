@@ -14,10 +14,6 @@ D = 200
 T = 16000
 num_parts = 8
 
-class LinearDecayingUCB(UCB):
-    def __init__(self, env, confidence_level: float = 1) -> None:
-        super().__init__(env, confidence_level, clip_ucb = True, decaying = True, decaying_mode = 'linear')
-
 def run_and_save(method_cls:callable,method_name:str,param_name:str,param_val):
     start = time()
     param_dict = {param_name: param_val}
@@ -60,7 +56,7 @@ def run_and_save(method_cls:callable,method_name:str,param_name:str,param_val):
     end = time()
     print('Running time', end-start)
 
-confidence_level_list = [x*10**i for i in range(-1,5) for x in range(1,6) ]
+confidence_level_list = [0] + [x*10**i for i in range(-5,2) for x in range(1,6) ]
 epsilon_list = np.arange(0,21)*0.01
 c_list = [x*10**i for i in range(-2,3) for x in range(1,6)]
 initial_list = np.arange(5,11)*0.1
@@ -69,13 +65,14 @@ kwargs_list = []
 # UCB
 for confidence_level in confidence_level_list:
     temp_kwargs = {
-        'method_cls': LinearDecayingUCB,
-        'method_name': 'LinearDecayingUCB',
+        'method_cls': UCB,
+        'method_name': 'UCB',
         'param_name': 'confidence_level',
         'param_val': confidence_level,
     }
     kwargs_list.append(temp_kwargs)
 
+"""
 # decaying epsilon greedy
 for c in c_list:
     temp_kwargs = {
@@ -86,7 +83,6 @@ for c in c_list:
     }
     kwargs_list.append(temp_kwargs)
 
-"""
 # epsilon greedy
 for epsilon in epsilon_list:
     temp_kwargs = {

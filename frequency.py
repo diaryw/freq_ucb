@@ -143,11 +143,11 @@ class UCB(BaseAlgorithm):
         by default = 1: UCB1-like algorithm
     """
     def __init__(self, env, confidence_level: float = 1.0, clip_ucb: bool =True, 
-                 decaying: bool =True, decaying_mode: str ='log') -> None:
+                 decaying: bool =False, decaying_mode: str ='log') -> None:
         super().__init__(env)
         self.confidence_level = confidence_level
         self.inf = 1e-3
-        self.initial_val = 0.99
+        self.initial_val = self.inf
         self.v_hat = np.full(self.num_message, self.initial_val)
         self.v_ucb = np.full(self.num_message, self.initial_val)
         # the first element of q is not used
@@ -189,12 +189,14 @@ class UCB(BaseAlgorithm):
         total_fb, total_click, tilde_noclick, tilde_leave = self.env.statistic
         n_continue = tilde_noclick - tilde_leave
         self.v_hat = np.divide(total_click, total_fb, out=self.v_hat, where=(total_fb!=0))
+        self.v_hat = np.maximum(self.v_hat,self.inf)
         self.v_ucb = self.v_hat + self.confidence_level * np.sqrt(2*np.log(t)/(total_fb + 1e-7)) * self.decaying_factor
         self.q_hat = np.divide(n_continue, tilde_noclick, out=self.q_hat, where=(tilde_noclick!=0))
+        self.q_hat = np.maximum(self.q_hat,self.inf)
         self.q_ucb = self.q_hat + self.confidence_level * np.sqrt(2*np.log(t)/(tilde_noclick + 1e-7)) * self.decaying_factor
         if self.clip_ucb:
-            self.v_ucb = np.minimum(self.v_ucb, 0.99)
-            self.q_ucb = np.minimum(self.q_ucb, 0.99)
+            self.v_ucb = np.minimum(self.v_ucb, 0.999)
+            self.q_ucb = np.minimum(self.q_ucb, 0.999)
 
 def regret_analysis(v, R, q, M, ret_real):
     """
@@ -224,10 +226,12 @@ if __name__ == '__main__':
         time_window=D,
     )
 
-    model = UCB(env,confidence_level=100,decaying_mode='linear')
-    _rewards = model.learn(timesteps=16000)
+    model = UCB(env,confidence_level=0.0)
+    _rewards = model.learn(timesteps=1000)
     plt.plot(_rewards[1])
     plt.show()
+    _,_, seq_theo, m_theo = optimize(v, R, q, M)
+    payoff_theo = evaluate_sequence(seq_theo, v,R,q)
 
 '''
     res = np.zeros([10, T], dtype = float)

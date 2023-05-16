@@ -16,7 +16,7 @@ class EpsilonGreedy(BaseAlgorithm):
         algorithm, if set a larger value: Epsilon-greedy with optimistic initialization
     decaying : whether to use decaying epsilon value, by default = False
     """
-    def __init__(self,env,epsilon = 0.0,initial_val=None, decaying = False,c = 1e-4) -> None:
+    def __init__(self,env,epsilon = 0.0,initial_val:float =None, decaying = False,c = 1e-4) -> None:
         super().__init__(env=env)
         # epsilon = 0: greedy, !=0: epsilon-greedy
         self.epsilon = epsilon
@@ -27,7 +27,7 @@ class EpsilonGreedy(BaseAlgorithm):
             self.initial_val = self.inf
         else:
             # optimistic initialization
-            self.initial_val = initial_val
+            self.initial_val = float(initial_val)
         self.v_hat = np.full(self.num_message, self.initial_val)
         # the first element of q is not used
         self.q_hat = np.full(self.num_maxsent + 1, self.initial_val)
@@ -92,8 +92,8 @@ if __name__ == '__main__':
         time_window=D,
     )
 
-    model = EpsilonGreedy(env,decaying=True)
-    _rewards = model.learn(timesteps=10000)
+    model = EpsilonGreedy(env,initial_val=1e-3)
+    _rewards = model.learn(timesteps=1000)
     plt.plot(_rewards[1])
     plt.show()
     _,_, seq_theo, m_theo = optimize(v, R, q, M)

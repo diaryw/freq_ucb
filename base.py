@@ -492,6 +492,7 @@ def best_sequence_preserve_order(v,R,q,M):
 
 def generate_noncontextual(N,M):
     v = np.array([random.normalvariate(0.0597,0.0185) for i in range(N)])
+    #v = np.array([random.uniform(0,0.5) for i in range(N)])
     R = np.array([random.uniform(1, 2) for i in range(N)])
     q = np.array([1.1 * math.e ** (-0.03 * i) / (1 + math.e ** (-0.03 * i)) for i in range(M + 1)])
     np.savez('data/noncontextual',N=N,M=M,v=v,R=R,q=q)

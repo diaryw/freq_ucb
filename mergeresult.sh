@@ -12,4 +12,4 @@ module load python/3.10
 module load scipy-stack
 python3 mergeresult.py
 
-find ./experiments/ ! -name '*task*' -type f -exec zip extraexp.zip {} +
+find ./experiments/ ! -name '*task*' -type f -exec tar -cvf experiments.tar {} +
