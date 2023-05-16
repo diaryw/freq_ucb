@@ -11,7 +11,7 @@ MPItaskID = int(os.environ['SLURM_PROCID'])
 
 N,M,v,R,q = load_noncontextual()
 D = 200
-T = 16000
+T = 30000
 num_parts = 8
 
 def run_and_save(method_cls:callable,method_name:str,param_name:str,param_val):
@@ -58,7 +58,7 @@ def run_and_save(method_cls:callable,method_name:str,param_name:str,param_val):
 
 confidence_level_list = [0] + [x*10**i for i in range(-5,2) for x in range(1,6) ]
 epsilon_list = np.arange(0,21)*0.01
-c_list = [x*10**i for i in range(-2,3) for x in range(1,6)]
+c_list = [x*10**i for i in range(-2,2) for x in range(1,4)]
 initial_list = np.arange(5,11)*0.1
 
 kwargs_list = []
@@ -72,7 +72,6 @@ for confidence_level in confidence_level_list:
     }
     kwargs_list.append(temp_kwargs)
 
-"""
 # decaying epsilon greedy
 for c in c_list:
     temp_kwargs = {
@@ -103,7 +102,6 @@ for initial_val in initial_list:
         'param_val': initial_val,
     }
     kwargs_list.append(temp_kwargs)
-"""
 
 if __name__=='__main__':
     # 60 tasks (each MPI for 200 times) in total, each task run loop_num times

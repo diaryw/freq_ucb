@@ -11,8 +11,8 @@ param_for_method = {
     'EpsilonGreedy': 'epsilon',
     'DecayingEpsilonGreedy': 'c',
     'UCB': 'confidence_level',
-    'DecayingUCB': 'confidence_level',
-    'LinearDecayingUCB': 'confidence_level',
+    #'DecayingUCB': 'confidence_level',
+    #'LinearDecayingUCB': 'confidence_level',
 }
 
 def mean_confidence_interval(data,confidence=0.95):
@@ -65,6 +65,7 @@ def get_total_rewards(method:str):
     T = _data_df['time'].max()
     # find all param_val
     param_vals = np.sort(_data_df[param_name].unique())
+    param_vals = param_vals[param_vals<=1]
     # find total rewards
     total_rewards = []
     for param_val in param_vals:
@@ -82,7 +83,7 @@ def plot_rewards_vs_param():
     plt.xlabel('Parameter Value')
     plt.ylabel('Total Rewards')
     plt.title('Cascading Bandit Experiment')
-    plt.savefig('result/testparam_100-1000.pdf',bbox_inches='tight',pad_inches=0.05)
+    plt.savefig('result/testparam.pdf',bbox_inches='tight',pad_inches=0.05)
     plt.show()
 
 # find optimal parameters for each algorithm
@@ -90,12 +91,12 @@ plot_rewards_vs_param()
 
 # plot regret for different methods vs time
 method_param = {
+    'OptimisticGreedy': 0.5,
     'EpsilonGreedy': 0.1,
     'DecayingEpsilonGreedy': 1e-4,
     'UCB': 0.1,
-    'DecayingUCB': 1.0,
-    'LinearDecayingUCB': 400,
-    'OptimisticGreedy': 0.9,
+    #'DecayingUCB': 1.0,
+    #'LinearDecayingUCB': 400,
 }
 data_for_plot = process_data_for_plot(method_param,use_expected=False)
 # plot

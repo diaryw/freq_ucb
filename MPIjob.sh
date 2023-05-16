@@ -2,7 +2,7 @@
 #SBATCH --account=def-weiqi
 #SBATCH --ntasks=100
 #SBATCH --mem-per-cpu=2G
-#SBATCH --time=12:00:00
+#SBATCH --time=3:00:00
 #SBATCH --mail-user=zhangyanking00@gmail.com
 #SBATCH --mail-type=ALL
 #SBATCH --array=0-7

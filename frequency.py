@@ -190,10 +190,10 @@ class UCB(BaseAlgorithm):
         n_continue = tilde_noclick - tilde_leave
         self.v_hat = np.divide(total_click, total_fb, out=self.v_hat, where=(total_fb!=0))
         self.v_hat = np.maximum(self.v_hat,self.inf)
-        self.v_ucb = self.v_hat + self.confidence_level * np.sqrt(2*np.log(t)/(total_fb + 1e-7)) * self.decaying_factor
+        self.v_ucb = self.v_hat + self.confidence_level * np.sqrt(2*np.log(t)/(total_fb + 1)) * self.decaying_factor
         self.q_hat = np.divide(n_continue, tilde_noclick, out=self.q_hat, where=(tilde_noclick!=0))
         self.q_hat = np.maximum(self.q_hat,self.inf)
-        self.q_ucb = self.q_hat + self.confidence_level * np.sqrt(2*np.log(t)/(tilde_noclick + 1e-7)) * self.decaying_factor
+        self.q_ucb = self.q_hat + self.confidence_level * np.sqrt(2*np.log(t)/(tilde_noclick + 1)) * self.decaying_factor
         if self.clip_ucb:
             self.v_ucb = np.minimum(self.v_ucb, 0.999)
             self.q_ucb = np.minimum(self.q_ucb, 0.999)
@@ -226,7 +226,7 @@ if __name__ == '__main__':
         time_window=D,
     )
 
-    model = UCB(env,confidence_level=0.0)
+    model = UCB(env,confidence_level=0.01)
     _rewards = model.learn(timesteps=1000)
     plt.plot(_rewards[1])
     plt.show()
