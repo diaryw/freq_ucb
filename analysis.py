@@ -82,6 +82,7 @@ def plot_rewards_vs_param():
     plt.xlabel('Parameter Value')
     plt.ylabel('Total Rewards')
     plt.title('Cascading Bandit Experiment')
+    plt.savefig('result/testparam_100-1000.pdf',bbox_inches='tight',pad_inches=0.05)
     plt.show()
 
 # find optimal parameters for each algorithm
@@ -89,10 +90,12 @@ plot_rewards_vs_param()
 
 # plot regret for different methods vs time
 method_param = {
-    'OptimisticGreedy': 0.9,
     'EpsilonGreedy': 0.1,
     'DecayingEpsilonGreedy': 1e-4,
-    'DecayingUCB': 0.1,
+    'UCB': 0.1,
+    'DecayingUCB': 1.0,
+    'LinearDecayingUCB': 400,
+    'OptimisticGreedy': 0.9,
 }
 data_for_plot = process_data_for_plot(method_param,use_expected=False)
 # plot
