@@ -2,6 +2,8 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+from copy import deepcopy
+from scipy.optimize import minimize
 from base import (
     BaseAlgorithm, 
     RecommendationEnv, 
@@ -9,6 +11,9 @@ from base import (
     BaseContextualAlgorithm,
     ContextualEnv,
 )
+
+import warnings
+warnings.filterwarnings('error')
 
 def sort_by_gamma(v, R, q): #q单值
     gamma = v * R / (1 - q * (1 - v))
@@ -223,33 +228,110 @@ class ContextualUCB(BaseContextualAlgorithm):
     ----------
     gamma1 : radius for v_ucb, i.e., confidence_level
     gamma2 : radius for q_ucb, i.e., confidence_level
-    eyecoeff1 : coefficient for eye matrix added to M (for v_ucb)
-    eyecoeff2 : coefficient for eye matrix added to N (for v_ucb)
+    eyecoeff1 : coefficient for eye matrix added to V (for v_ucb)
+    eyecoeff2 : coefficient for eye matrix added to M (for q_ucb)
     """
-    def __init__(self, env, gamma1:float=0.1,gamma2:float=0.2,
-                 eyecoeff1:float=1.0,eyecoeff2:float=1.0) -> None:
+    def __init__(self, env, gamma1:float=0.1,gamma2:float=1e-3,
+                 eyecoeff1:float=1.0,eyecoeff2:float=1.0,
+                 regularization_alpha:float=0.1,regularization_beta:float=0.1) -> None:
         super().__init__(env)
         self.gamma1 = gamma1
         self.gamma2 = gamma2
         self.eyecoeff1 = eyecoeff1
         self.eyecoeff2 = eyecoeff2
         self.optimize_fun = optimize
-        self.alpha_hat = -np.ones(shape=(self.num_maxsent+1,self.dim_user_feature))
+        self.alpha_hat = np.zeros(shape=(self.num_maxsent+1,self.dim_user_feature))
         self.beta_hat = np.ones(shape=(self.dim_message_feature))
+        self.alpha_default = deepcopy(self.alpha_hat)
+        self.beta_default = deepcopy(self.beta_hat)
+        self.Veye = np.eye(self.dim_message_feature)*self.eyecoeff1
+        self.Meye = np.array([np.eye(self.dim_user_feature)]*(self.num_maxsent+1))*self.eyecoeff2
+        self.regularization_alpha = regularization_alpha
+        self.regularization_beta = regularization_beta
+
+    def sigmoid(self,x):
+        return 1.0/(1.0+np.exp(-x))
+
+    def _get_ucb(self,_user_feature,_message_feature):
+        # for v
+        v_lin_hat = np.dot(_message_feature,self.beta_hat)
+        v_mat_norm = np.sqrt(np.array([vec@self.V_inv@vec for vec in _message_feature]))
+        # compute probability
+        v_ucb = self.sigmoid(v_lin_hat + self.gamma1*v_mat_norm)
+        # for q
+        q_lin_hat = np.dot(self.alpha_hat,_user_feature)
+        q_mat_norm = np.sqrt(np.array([_user_feature@_mat_M@_user_feature for _mat_M in self.M_inv]))
+        q_ucb = self.sigmoid(q_lin_hat + self.gamma2*q_mat_norm)
+        return v_ucb,q_ucb
 
     def action(self):
-        get_optimal_m = lambda x,y,z: random.randint(5,10)
-        get_sequence = lambda x,y,z,m: [random.randint(0,self.env.num_message-1) for _ in range(m)]
+        def get_optimal_m(_user_feature,_message_feature,_reward_vector) -> int:
+            v_ucb,q_ucb = self._get_ucb(_user_feature,_message_feature)
+            return optimize(v_ucb,_reward_vector,q_ucb,self.num_maxsent)[3]
+
+        def get_sequence(_user_feature, _message_feature, _reward_vector, _message_max) -> list:
+            v_ucb,q_ucb = self._get_ucb(_user_feature,_message_feature)
+            return alg1_basic(v_ucb,_reward_vector,q_ucb,_message_max)[2]
+
         return get_optimal_m, get_sequence
+
+    def MLE_alpha(self,m) -> np.ndarray:
+        if self.env.time==0:
+            return self.alpha_default[m]
+        self.m_index = self.m_record==m
+        # if there is some hat_Y_rj=1
+        # use MLE
+        def neg_LL_alpha(_alpha):
+            x_alpha = np.expand_dims((self.user_features@_alpha),axis=1)
+            full_LL = self.hat_Y_rj*x_alpha - np.log(1+np.exp(x_alpha))
+            neg_LL = -(full_LL*self.noclick_ind)[self.m_index].sum() + \
+                np.power(_alpha[1:],2).sum()*self.regularization_alpha
+            return neg_LL
+        MLE_model = minimize(neg_LL_alpha, self.alpha_hat[m])
+        return MLE_model.x
+
+    def MLE_beta(self) -> np.ndarray:
+        if self.env.time==0:
+            return self.beta_default
+        def neg_LL_beta(_beta):
+            w_beta = np.dot(self.message_features,_beta)
+            full_LL = self.Y_rj*w_beta - np.log(1+np.exp(w_beta))
+            neg_LL = -(full_LL*self.feedback_ind).sum() + \
+                np.power(_beta,2).sum()*self.regularization_beta
+            return neg_LL
+
+        MLE_model = minimize(neg_LL_beta, self.beta_hat)
+        return MLE_model.x
 
     def update_param(self):
         m_record, noclick_ind, hat_Y_rj, feedback_ind, Y_rj = self.env.statistic
         user_features, message_features = self.env.features
-        M, V = self.env.covariance
+        mat_M, mat_V = self.env.covariance
+        # update inverse matrix
+        self.M_inv = np.linalg.inv(mat_M+self.Meye)
+        self.V_inv = np.linalg.inv(mat_V+self.Veye)
+        # update alpha
+        self.m_record = np.array(m_record)
+        self.noclick_ind = np.array(noclick_ind)
+        self.hat_Y_rj = np.array(hat_Y_rj)
+        self.user_features = np.array(user_features)
+        # compute alpha by MLE
+        self.alpha_hat = np.array([self.MLE_alpha(m) for m in range(self.num_maxsent+1)])
 
+        # update beta
+        self.feedback_ind = np.array(feedback_ind)
+        self.Y_rj = np.array(Y_rj)
+        self.message_features = np.array(message_features)
+        # compute beta by MLE
+        self.beta_hat = self.MLE_beta()
 
 
 if __name__ == '__main__':
+    env = ContextualEnv(seed=2023)
+    model = ContextualUCB(env=env)
+    _result = model.learn(timesteps=1000)
+    raise RuntimeError('Stop here')
+
     import random
     N = 35
     M = 7
@@ -274,10 +356,6 @@ if __name__ == '__main__':
     _,_, seq_theo, m_theo = optimize(v, R, q, M)
     payoff_theo = evaluate_sequence(seq_theo, v,R,q)
 
-    env = ContextualEnv(seed=2023)
-    model = ContextualUCB(env=env)
-    _result = model.learn(timesteps=1000)
-    self = model
 '''
     res = np.zeros([10, T], dtype = float)
     for exptimes in range(10):

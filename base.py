@@ -480,7 +480,7 @@ class ContextualEnv:
     @property
     def statistic(self):
         return (self.m_record, self.noclick_indicator, self.hat_Y_rj,\
-                self.feedback_indicator, self.Y_rj,)
+                self.feedback_indicator, self.Y_rj)
 
     @property
     def features(self):
@@ -577,7 +577,8 @@ class BaseContextualAlgorithm(BaseAlgorithm):
     
     def learn(self, timesteps: int):
         inst_rewards, expected, reward_customers = super().learn(timesteps)
-        return inst_rewards, expected, reward_customers, self.optimal_payoff_record[:timesteps]
+        return np.array(inst_rewards), np.array(expected), \
+            np.array(reward_customers), np.array(self.optimal_payoff_record[:timesteps])
 
 
 def evaluate_sequence(seq,v,R,q):
@@ -692,11 +693,11 @@ def generate_contextual(M=20, alpha_range=None,beta=None):
     user_feature_range : the range to define user feature
     """
     if alpha_range is None:
-        alpha_range = np.array([-0.064,-0.08,-0.16])
+        alpha_range = np.array([-0.004,-0.064,-0.08])
     if beta is None:
         beta = np.array([0.05,0.2,0.1,0.3,0.4])
     alpha = np.array([np.random.uniform(low=alpha_range*m,high=0) for m in range(M+1)])
-    alpha = np.concatenate([np.ones((M+1,1))*-1.04,alpha],axis = 1)
+    alpha = np.concatenate([np.ones((M+1,1))*1.04,alpha],axis = 1)
     np.savez('data/contextual',alpha=alpha,beta=beta)
 
 
