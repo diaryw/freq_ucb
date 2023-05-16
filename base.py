@@ -2,89 +2,6 @@ import numpy as np
 import math
 from abc import ABC, abstractmethod
 import random
-from collections import deque
-
-class ContextGenerator:
-    def __init__(self,seed:int = 2023,num_message:int=25,user_feature_range=None,message_feature_range=None,reward_range = None) -> None:
-        # save all input
-        self.seed = seed
-        self.num_message = num_message
-        self.user_feature_range = user_feature_range
-        self.message_feature_range = message_feature_range
-        # use default value if no input
-        if self.user_feature_range is None:
-            self.user_feature_range = np.array([5,5,5])
-        if self.message_feature_range is None:
-            self.message_feature_range = np.array([-6,1,2,-5])
-        # default value for reward_range
-        if reward_range is None:
-            self.reward_range = [1,5]
-        else:
-            self.reward_range = reward_range
-        # instantiate a random number generator
-        self._generator = np.random.default_rng(seed=self.seed)
-        # load data
-        self._load()
-
-    def _load(self) -> None:
-        npzdata = np.load('data/contextual.npz')
-        self._alpha = npzdata['alpha']
-        self._beta = npzdata['beta']
-        self.num_maxsent = len(self._alpha) - 1
-        # get features range
-        self.user_feature_low = np.minimum(self.user_feature_range,0)
-        self.user_feature_high = np.maximum(self.user_feature_range,0)
-        self.message_feature_low = np.minimum(self.message_feature_range,0)
-        self.message_feature_high = np.maximum(self.message_feature_range,0)
-        # get reward range
-        self.reward_low = np.min(self.reward_range)
-        self.reward_high = np.max(self.reward_range)
-        # check the dimensions
-        if self._alpha.shape[1] != len(self.user_feature_range)+1:
-            raise ValueError('dimension of alpha must be compatible with user_feature_range')
-        if len(self._beta) != len(self.message_feature_range)+1:
-            raise ValueError('dimension of beta must be compatible with message_feature_range')
-        if self.num_message<self.num_maxsent:
-            raise ValueError(f'Number of messages should be no less than max_sent={self.num_maxsent}')
-
-    def get_user_feature(self) -> np.ndarray:
-        _user_feature = self._generator.uniform(self.user_feature_low,self.user_feature_high)
-        return np.concatenate([[1],_user_feature])
-    
-    def get_message_feature(self) -> np.ndarray:
-        _intercept = np.ones(shape=(self.num_message,1))
-        _message_feature = self._generator.uniform(
-            low=self.message_feature_low,
-            high=self.message_feature_high,
-            size=(self.num_message,len(self.message_feature_range))
-            )
-        return np.concatenate([_intercept,_message_feature],axis=1)
-
-    def get_reward_vector(self) -> np.ndarray:
-        _reward = self._generator.uniform(
-            low=self.reward_low,
-            high=self.reward_high,
-            size=self.num_message,
-        )
-        return _reward
-
-    # add some property
-    @property
-    def N(self) -> int:
-        return self.num_message
-    
-    @property
-    def M(self) -> int:
-        return self.num_maxsent
-
-    @property
-    def alpha(self) -> np.ndarray:
-        return self._alpha
-    
-    @property
-    def beta(self) -> np.ndarray:
-        return self._beta
-
 
 class RecommendationEnv:
     def __init__(self,num_message,num_maxsent,attraction_prob,reward_per_message,
@@ -236,6 +153,87 @@ class RecommendationEnv:
             q = self.q_prob)
         return _expected_val
 
+class ContextGenerator:
+    def __init__(self,seed:int = 2023,num_message:int=25,user_feature_range=None,message_feature_range=None,reward_range = None) -> None:
+        # save all input
+        self.seed = seed
+        self.num_message = num_message
+        self.user_feature_range = user_feature_range
+        self.message_feature_range = message_feature_range
+        # use default value if no input
+        if self.user_feature_range is None:
+            self.user_feature_range = np.array([5,5,5])
+        if self.message_feature_range is None:
+            self.message_feature_range = np.array([-6,1,2,-5])
+        # default value for reward_range
+        if reward_range is None:
+            self.reward_range = [1,5]
+        else:
+            self.reward_range = reward_range
+        # instantiate a random number generator
+        self._generator = np.random.default_rng(seed=self.seed)
+        # load data
+        self._load()
+
+    def _load(self) -> None:
+        npzdata = np.load('data/contextual.npz')
+        self._alpha = npzdata['alpha']
+        self._beta = npzdata['beta']
+        self.num_maxsent = len(self._alpha) - 1
+        # get features range
+        self.user_feature_low = np.minimum(self.user_feature_range,0)
+        self.user_feature_high = np.maximum(self.user_feature_range,0)
+        self.message_feature_low = np.minimum(self.message_feature_range,0)
+        self.message_feature_high = np.maximum(self.message_feature_range,0)
+        # get reward range
+        self.reward_low = np.min(self.reward_range)
+        self.reward_high = np.max(self.reward_range)
+        # check the dimensions
+        if self._alpha.shape[1] != len(self.user_feature_range)+1:
+            raise ValueError('dimension of alpha must be compatible with user_feature_range')
+        if len(self._beta) != len(self.message_feature_range)+1:
+            raise ValueError('dimension of beta must be compatible with message_feature_range')
+        if self.num_message<self.num_maxsent:
+            raise ValueError(f'Number of messages should be no less than max_sent={self.num_maxsent}')
+
+    def get_user_feature(self) -> np.ndarray:
+        _user_feature = self._generator.uniform(self.user_feature_low,self.user_feature_high)
+        return np.concatenate([[1],_user_feature])
+    
+    def get_message_feature(self) -> np.ndarray:
+        _intercept = np.ones(shape=(self.num_message,1))
+        _message_feature = self._generator.uniform(
+            low=self.message_feature_low,
+            high=self.message_feature_high,
+            size=(self.num_message,len(self.message_feature_range))
+            )
+        return np.concatenate([_intercept,_message_feature],axis=1)
+
+    def get_reward_vector(self) -> np.ndarray:
+        _reward = self._generator.uniform(
+            low=self.reward_low,
+            high=self.reward_high,
+            size=self.num_message,
+        )
+        return _reward
+
+    # add some property
+    @property
+    def N(self) -> int:
+        return self.num_message
+    
+    @property
+    def M(self) -> int:
+        return self.num_maxsent
+
+    @property
+    def alpha(self) -> np.ndarray:
+        return self._alpha
+    
+    @property
+    def beta(self) -> np.ndarray:
+        return self._beta
+
 
 class ContextualEnv:
     """
@@ -286,10 +284,10 @@ class ContextualEnv:
         # shape = (customer num,)
         self.m_record = [] 
         # user r examines the j-th message but does not click by time t
-        # shape = (customer num, M)
+        # shape = (customer num, M + 1)
         self.noclick_indicator = [] 
         # \hat{Y}_{r,j}, if user r remains in the system after she does not click on the j th message in a list
-        # shape = (customer num, M)
+        # shape = (customer num, M + 1)
         self.hat_Y_rj = []
         # user r gives the feedback for the j th message by time t
         # shape = (customer num, N)
@@ -299,7 +297,7 @@ class ContextualEnv:
         self.Y_rj = []
 
         # store variables for covariance estimators
-        self.M_user = np.zeros(shape=(self.dim_user_feature,self.dim_user_feature))
+        self.M_user = np.zeros(shape=(self.num_maxsent+1,self.dim_user_feature,self.dim_user_feature))
         self.V_message = np.zeros(shape=(self.dim_message_feature,self.dim_message_feature))
 
     def _remove_inactive_customer(self) -> None:
@@ -331,6 +329,11 @@ class ContextualEnv:
         self.user_features_record.append(_user_feature)
         self.message_features_record.append(_message_feature)
         self.reward_vectors_record.append(_reward_vector)
+        self.m_record.append(optimal_m)
+        self.noclick_indicator.append(np.zeros(shape=self.num_maxsent + 1))
+        self.hat_Y_rj.append(np.zeros(shape=self.num_maxsent + 1))
+        self.feedback_indicator.append(np.zeros(shape=self.num_message))
+        self.Y_rj.append(np.zeros(shape=self.num_message))
         # index + 1
         self.total_customer += 1
 
@@ -363,10 +366,6 @@ class ContextualEnv:
         self._send_active_customers(get_sequence)
         self.time += 1
 
-    @property
-    def statistic(self):
-        pass
-
     def sigmoid(self,x):
         return 1.0/(1.0+np.exp(-x))
 
@@ -391,6 +390,10 @@ class ContextualEnv:
 
     def get_feedback(self) -> float:
         """return rewards received in current time
+        self.noclick_indicator = [] 
+        self.hat_Y_rj = []
+        self.feedback_indicator = []
+        self.Y_rj = []
         """
         if len(self.active_customers)==0:
             return 0
@@ -400,24 +403,32 @@ class ContextualEnv:
         for _customer in self.active_customers:
             if _customer['next_feedback'] == self.time:
                 message_id = _customer['sent'][-1]
+                num_sent = len(_customer['sent'])
+                customer_id = _customer['id']
+                _message_max = _customer['message_max']
                 response = self._generate_feedback(_customer)
-                self.tot_fb[message_id] += 1
+                self.feedback_indicator[customer_id][message_id] = 1
+                # update V_t
+                tmp_m_feature = _customer['message_feature'][message_id]
+                self.V_message += np.dot(tmp_m_feature.reshape((-1,1)),tmp_m_feature.reshape((1,-1)))
 
                 # click
                 if response == 1:
-                    self.tot_click[message_id] += 1
-                    reward = self.reward_per_message[message_id]
+                    reward = _customer['reward_vector'][message_id]
                     total_reward += reward
-                    self.reward_customers[_customer['id']] = reward
+                    self.reward_customers[customer_id] = reward
+                    self.Y_rj[customer_id][message_id] = 1
 
                 # no click but remain
                 if response == 0:
-                    self.tilde_noclick[_customer['message_max']] += 1
+                    self.noclick_indicator[customer_id][num_sent] = 1
+                    self.hat_Y_rj[customer_id][num_sent] = 1
+                    self.M_user[_message_max] += np.dot(_customer['feature'].reshape((-1,1)),_customer['feature'].reshape((1,-1)))
 
                 # no click and abandon
                 if response == -1:
-                    self.tilde_noclick[_customer['message_max']] += 1
-                    self.tilde_leave[_customer['message_max']] += 1
+                    self.noclick_indicator[customer_id][num_sent] = 1
+                    self.M_user[_message_max] += np.dot(_customer['feature'].reshape((-1,1)),_customer['feature'].reshape((1,-1)))
 
                 # check if customer is active
                 if response == 0 and len(_customer['sent']) < _customer['message_max']:
@@ -431,17 +442,53 @@ class ContextualEnv:
         return total_reward
 
     def expected_payoff(self, get_optimal_m:callable, get_sequence: callable) -> float:
-        seq = get_sequence(get_optimal_m)
+        current_customer = self.active_customers[-1]
+        customer_m = current_customer['message_max']
+        # customer feature
+        c_feature = current_customer['feature']
+        # message features
+        m_feature = current_customer['message_feature']
+        # reward vector
+        r_vector = current_customer['reward_vector']
+        seq = get_sequence(c_feature,m_feature,r_vector,customer_m)
         _expected_val = evaluate_sequence(
             seq = seq,
-            v = self.attraction_prob,
-            R = self.reward_per_message,
-            q = self.q_prob)
+            v = self.sigmoid(np.dot(m_feature,self.beta_truth)),
+            R = r_vector,
+            q = self.sigmoid(np.dot(self.alpha_truth,c_feature)),
+        )
         return _expected_val
+    
+    def optimal_payoff(self, optimize:callable) -> float:
+        '''
+        Parameters
+        ----------
+        optimize : pass the optimize function in frequency.py to this member func
+        '''
+        current_customer = self.active_customers[-1]
+        # customer feature
+        c_feature = current_customer['feature']
+        # message features
+        m_feature = current_customer['message_feature']
+        # reward vector
+        r_vector = current_customer['reward_vector']
+        _v = self.sigmoid(np.dot(m_feature,self.beta_truth))
+        _q = self.sigmoid(np.dot(self.alpha_truth,c_feature))
+        _opt_val = optimize(_v, r_vector, _q, self.num_maxsent)[0]
+        return _opt_val
 
-self = ContextualEnv(seed=123)
-get_optimal_m = lambda x,y,z:5
-get_sequence = lambda x,y,z,m: [i for i in range(m)]
+    @property
+    def statistic(self):
+        return (self.m_record, self.noclick_indicator, self.hat_Y_rj,\
+                self.feedback_indicator, self.Y_rj,)
+
+    @property
+    def features(self):
+        return (self.user_features_record, self.message_features_record)
+
+    @property
+    def covariance(self):
+        return (self.M_user, self.V_message)
 
 # create aliases
 ContextualRecommendationEnv = ContextualEnv
@@ -502,6 +549,35 @@ class BaseAlgorithm(ABC):
             rewards_record.append(reward)
 
         return rewards_record[:timesteps], self.expected_payoff_record[:timesteps], self.env.reward_customers[:timesteps]
+
+class BaseContextualAlgorithm(BaseAlgorithm):
+    def __init__(self, env) -> None:
+        self.env = env
+        # N
+        self.num_message = self.env.num_message
+        # M
+        self.num_maxsent = self.env.num_maxsent
+        # D
+        self.time_window = self.env.time_window
+        # get the dimension
+        self.dim_user_feature = self.env.dim_user_feature
+        self.dim_message_feature = self.env.dim_message_feature
+        # define some container
+        self.expected_payoff_record = []
+        self.optimal_payoff_record = []
+        self.optimize_fun: callable = None
+
+    def step(self) -> float:
+        # super step
+        current_rewards = super().step()
+        # get optimal payoff
+        _optimal_payoff = self.env.optimal_payoff(self.optimize_fun)
+        self.optimal_payoff_record.append(_optimal_payoff)
+        return current_rewards
+    
+    def learn(self, timesteps: int):
+        inst_rewards, expected, reward_customers = super().learn(timesteps)
+        return inst_rewards, expected, reward_customers, self.optimal_payoff_record[:timesteps]
 
 
 def evaluate_sequence(seq,v,R,q):

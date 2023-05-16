@@ -2,7 +2,13 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-from base import BaseAlgorithm, RecommendationEnv, evaluate_sequence
+from base import (
+    BaseAlgorithm, 
+    RecommendationEnv, 
+    evaluate_sequence,
+    BaseContextualAlgorithm,
+    ContextualEnv,
+)
 
 def sort_by_gamma(v, R, q): #q单值
     gamma = v * R / (1 - q * (1 - v))
@@ -139,7 +145,7 @@ class UCB(BaseAlgorithm):
 
     Parameters
     ----------
-    c : width for confidence interval for ucb value, 
+    confidence_level : width for confidence interval for ucb value, 
         by default = 1: UCB1-like algorithm
     """
     def __init__(self, env, confidence_level: float = 1.0, clip_ucb: bool =True, 
@@ -198,6 +204,7 @@ class UCB(BaseAlgorithm):
             self.v_ucb = np.minimum(self.v_ucb, 0.999)
             self.q_ucb = np.minimum(self.q_ucb, 0.999)
 
+# the regret analysis is only for non context case
 def regret_analysis(v, R, q, M, ret_real):
     """
     ret_real : reward at each time
@@ -207,6 +214,40 @@ def regret_analysis(v, R, q, M, ret_real):
     instant_regret = payoff_theo - np.array(ret_real)
     regret = np.cumsum(instant_regret)
     return regret
+
+class ContextualUCB(BaseContextualAlgorithm):
+    """
+    Linear UCB based algorithm for cascading bandit with delayed feedback
+
+    Parameters
+    ----------
+    gamma1 : radius for v_ucb, i.e., confidence_level
+    gamma2 : radius for q_ucb, i.e., confidence_level
+    eyecoeff1 : coefficient for eye matrix added to M (for v_ucb)
+    eyecoeff2 : coefficient for eye matrix added to N (for v_ucb)
+    """
+    def __init__(self, env, gamma1:float=0.1,gamma2:float=0.2,
+                 eyecoeff1:float=1.0,eyecoeff2:float=1.0) -> None:
+        super().__init__(env)
+        self.gamma1 = gamma1
+        self.gamma2 = gamma2
+        self.eyecoeff1 = eyecoeff1
+        self.eyecoeff2 = eyecoeff2
+        self.optimize_fun = optimize
+        self.alpha_hat = -np.ones(shape=(self.num_maxsent+1,self.dim_user_feature))
+        self.beta_hat = np.ones(shape=(self.dim_message_feature))
+
+    def action(self):
+        get_optimal_m = lambda x,y,z: random.randint(5,10)
+        get_sequence = lambda x,y,z,m: [random.randint(0,self.env.num_message-1) for _ in range(m)]
+        return get_optimal_m, get_sequence
+
+    def update_param(self):
+        m_record, noclick_ind, hat_Y_rj, feedback_ind, Y_rj = self.env.statistic
+        user_features, message_features = self.env.features
+        M, V = self.env.covariance
+
+
 
 if __name__ == '__main__':
     import random
@@ -233,6 +274,10 @@ if __name__ == '__main__':
     _,_, seq_theo, m_theo = optimize(v, R, q, M)
     payoff_theo = evaluate_sequence(seq_theo, v,R,q)
 
+    env = ContextualEnv(seed=2023)
+    model = ContextualUCB(env=env)
+    _result = model.learn(timesteps=1000)
+    self = model
 '''
     res = np.zeros([10, T], dtype = float)
     for exptimes in range(10):

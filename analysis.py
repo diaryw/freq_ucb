@@ -65,7 +65,6 @@ def get_total_rewards(method:str):
     T = _data_df['time'].max()
     # find all param_val
     param_vals = np.sort(_data_df[param_name].unique())
-    param_vals = param_vals[param_vals<=1]
     # find total rewards
     total_rewards = []
     for param_val in param_vals:
@@ -87,14 +86,14 @@ def plot_rewards_vs_param():
     plt.show()
 
 # find optimal parameters for each algorithm
-plot_rewards_vs_param()
+#plot_rewards_vs_param()
 
 # plot regret for different methods vs time
 method_param = {
-    'OptimisticGreedy': 0.5,
-    'EpsilonGreedy': 0.1,
-    'DecayingEpsilonGreedy': 1e-4,
-    'UCB': 0.1,
+    'OptimisticGreedy': 0.9,
+    'EpsilonGreedy': 0.01,
+    'DecayingEpsilonGreedy': 3.0,
+    'UCB': 0.2,
     #'DecayingUCB': 1.0,
     #'LinearDecayingUCB': 400,
 }
@@ -107,7 +106,7 @@ for data in data_for_plot:
 plt.legend(loc='best',fancybox=False)
 plt.xlabel('Time')
 plt.ylabel('Regret')
-plt.title('Cascading Bandit Experiment')
+plt.title('Noncontextual Experiments')
 plt.savefig('result/regret_noncontextual.pdf',bbox_inches='tight',pad_inches=0.05)
 plt.show()
 
