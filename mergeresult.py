@@ -26,7 +26,14 @@ method_list = ['UCB','DecayingEpsilonGreedy','EpsilonGreedy','OptimisticGreedy']
 for method in method_list:
     merge_files(f'noncontextual_{method}')
 
-method_list = ['ContextualUCB','ETC','EpsilonGreedy','DecayingGreedy']
+#method_list = ['ContextualUCB','ETC','EpsilonGreedy','DecayingGreedy']
+method_list = ['ContextualUCB']
 for method in method_list:
     merge_files(f'contextual_{method}')
+
+method_list = ['UCB']
+for method in method_list:
+    merge_files(f'fixedcontext_{method}')
+
+
 

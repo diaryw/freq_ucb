@@ -15,6 +15,13 @@ param_for_method = {
     #'LinearDecayingUCB': 'confidence_level',
 }
 
+param_for_method_context = {
+    'ETC': 'commit_time',
+    'EpsilonGreedy': 'epsilon',
+    'DecayingGreedy': 'c',
+    'ContextualUCB': 'gamma1',
+}
+
 def mean_confidence_interval(data,confidence=0.95):
     n = len(data)
     avg_regret_data = np.mean(data,axis=0)
@@ -120,7 +127,7 @@ def test_contextual_ucb():
     # find all param_val
     unique_val = _data_df[['gamma1','gamma2']].copy().drop_duplicates().reset_index(drop=True)
     # how to drop some values
-    unique_val = unique_val.drop([1,6,8,9])
+    #unique_val = unique_val.drop([2,3,12,13,14,18,19])
     # iterate over the unique values
     avg_regret_data_list = []
     param_list = []
@@ -128,12 +135,14 @@ def test_contextual_ucb():
     for i in range(unique_val.shape[0]):
         gamma1,gamma2 = unique_val.iloc[i]
         data_df = _data_df[(_data_df['gamma1']==gamma1) & (_data_df['gamma2']==gamma2)].reset_index(drop=True)
-        data_regret = data_df['expected_regret'].values
+        data_regret = data_df['realized_regret'].values
         data_regret = data_regret.reshape(-1,T)
+        print('datanum',len(data_regret))
         avg_regret_data,lower_regret_data,upper_regret_data = mean_confidence_interval(data_regret)
         avg_regret_data_list.append(avg_regret_data)
         param_list.append({'gamma1':gamma1,'gamma2':gamma2})
         plt.plot(avg_regret_data,label='gamma1={},gamma2={}'.format(gamma1,gamma2))
+        plt.fill_between(range(T),lower_regret_data,upper_regret_data,alpha=0.1)
     plt.legend(loc='best',fancybox=False)
     plt.xlabel('Time')
     plt.ylabel('Regret')
@@ -147,4 +156,57 @@ def test_contextual_ucb():
     return best_param
 
 best_param = test_contextual_ucb()
+
+
+def read_data_contextual(method,param_val,use_expected=True):
+    _data_df = pd.read_csv('experiments/contextual_{}.csv'.format(method))
+    param_name = param_for_method_context[method]
+    # sort by param_val and reindex
+    _data_df = _data_df.sort_values(by=[param_name,'run','time']).reset_index(drop=True)
+    # find T , the number of time steps
+    global T
+    T = _data_df['time'].max()
+    data_df = _data_df[_data_df[param_name]==param_val].reset_index(drop=True)
+    if use_expected:
+        data_regret = data_df['expected_regret'].values
+    else:
+        data_regret = data_df['realized_regret'].values
+    data_regret = data_regret.reshape(-1,T)
+    avg_regret_data,lower_regret_data,upper_regret_data = mean_confidence_interval(data_regret)
+    return avg_regret_data,lower_regret_data,upper_regret_data
+
+def process_data_for_plot_context(method_param :dict, use_expected = False):
+    output = []
+    for method,param_val in method_param.items():
+        tmp_dict = {
+            'method': method,
+            'param_val': param_val,
+            'use_expected': use_expected,
+        }
+        _avg, _lb, _ub = read_data_contextual(method,param_val,use_expected)
+        tmp_dict['avg'] = _avg
+        tmp_dict['lb'] = _lb
+        tmp_dict['ub'] = _ub
+        output.append(tmp_dict)
+    return output
+
+# plot regret for different methods vs time
+method_param = {
+    'ContextualUCB': 1.0,
+    'EpsilonGreedy': 0.05,
+    'DecayingGreedy': 1,
+    'ETC': 100,
+}
+data_for_plot = process_data_for_plot_context(method_param,use_expected=False)
+# plot
+plt.figure(figsize=(8,5))
+for data in data_for_plot:
+    plt.plot(data['avg'][:T],label=data['method'])
+    plt.fill_between(range(T),data['lb'][:T],data['ub'][:T],alpha=0.1)
+plt.legend(loc='best',fancybox=False)
+plt.xlabel('Time')
+plt.ylabel('Regret')
+plt.title('Contextual Experiments')
+plt.savefig('result/regret_contextual.pdf',bbox_inches='tight',pad_inches=0.05)
+plt.show()
 

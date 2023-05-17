@@ -234,6 +234,29 @@ class ContextGenerator:
     def beta(self) -> np.ndarray:
         return self._beta
 
+class FixedContextGenerator(ContextGenerator):
+    def __init__(self, 
+                 seed: int = 2023, 
+                 num_message: int = 25, 
+                 user_feature_range=None, 
+                 message_feature_range=None, 
+                 reward_range=None
+                 ) -> None:
+        super().__init__(
+            seed, 
+            num_message, 
+            user_feature_range, 
+            message_feature_range, 
+            reward_range
+        )
+        self.fixed_message_feature = super().get_message_feature()
+        self.fixed_user_feature = super().get_user_feature()
+
+    def get_message_feature(self) -> np.ndarray:
+        return self.fixed_message_feature
+
+    def get_user_feature(self) -> np.ndarray:
+        return self.fixed_user_feature
 
 class ContextualEnv:
     """
@@ -244,8 +267,8 @@ class ContextualEnv:
     seed : random seed for random generator in ContextGenerator()
     """
     def __init__(self,seed:int=2023,user_feature_range=None, message_feature_range = None,
-                 time_window:int = 200) -> None:
-        self.context_generator = ContextGenerator(
+                 time_window:int = 200, generator_cls = ContextGenerator) -> None:
+        self.context_generator = generator_cls(
             seed=seed,
             user_feature_range = user_feature_range,
             message_feature_range = message_feature_range,

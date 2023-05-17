@@ -10,6 +10,7 @@ from base import (
     evaluate_sequence,
     BaseContextualAlgorithm,
     ContextualEnv,
+    FixedContextGenerator,
 )
 
 import warnings
@@ -325,11 +326,84 @@ class ContextualUCB(BaseContextualAlgorithm):
         # compute beta by MLE
         self.beta_hat = self.MLE_beta()
 
+class UCBFixedContext(BaseContextualAlgorithm):
+    """
+    UCB based algorithm for fixed context cascading bandit with delayed feedback
+    The environment is contextual but context is fixed.
+    No context is used in this basic UCB Algorithm
+
+    Parameters
+    ----------
+    confidence_level : width for confidence interval for ucb value, 
+        by default = 1: UCB1-like algorithm
+    """
+    def __init__(self, env, confidence_level: float = 1.0, clip_ucb: bool =True,) -> None:
+        super().__init__(env)
+        self.confidence_level = confidence_level
+        self.inf = 1e-3
+        self.initial_val = self.inf
+        self.v_hat = np.full(self.num_message, self.initial_val)
+        self.v_ucb = np.full(self.num_message, self.initial_val)
+        # the first element of q is not used
+        self.q_hat = np.full(self.num_maxsent + 1, self.initial_val)
+        self.q_ucb = np.full(self.num_maxsent + 1, self.initial_val)
+        self.clip_ucb = clip_ucb
+        self.optimize_fun = optimize
+
+    def action(self):
+        """
+        take actions
+
+        Return
+        ----------
+        get_optimal_m : callable, the optimal number of messages
+        get_sequence: callable, input number and output optimal sequence of messages 
+        """
+        def get_optimal_m(_user_feature,_message_feature,_reward_vector) -> int:
+            return optimize(self.v_ucb,_reward_vector,self.q_ucb,self.num_maxsent)[3]
+
+        def get_sequence(_user_feature, _message_feature, _reward_vector, _message_max):
+            return alg1_basic(self.v_ucb,_reward_vector,self.q_ucb,_message_max)[2]
+
+        return get_optimal_m, get_sequence
+
+    def update_param(self) -> None:
+        t = self.env.time + 1
+        m_record, noclick_ind, hat_Y_rj, feedback_ind, Y_rj = self.env.statistic
+        # total_fb, total_click, tilde_noclick, tilde_leave = self.env.statistic
+        m_record = np.array(m_record)
+        total_fb = np.array(feedback_ind).sum(axis = 0)
+        total_click = np.array(Y_rj).sum(axis = 0)
+        tilde_noclick = np.array([(np.array(noclick_ind)[m_record==m]).sum() for m in range(self.num_maxsent+1)])
+        n_continue = np.array([(np.array(hat_Y_rj)[m_record==m]).sum() for m in range(self.num_maxsent+1)])
+        self.v_hat = np.divide(total_click, total_fb, out=self.v_hat, where=(total_fb!=0))
+        self.v_hat = np.maximum(self.v_hat,self.inf)
+        self.v_ucb = self.v_hat + self.confidence_level * np.sqrt(2*np.log(t)/(total_fb + 1))
+        self.q_hat = np.divide(n_continue, tilde_noclick, out=self.q_hat, where=(tilde_noclick!=0))
+        self.q_hat = np.maximum(self.q_hat,self.inf)
+        self.q_ucb = self.q_hat + self.confidence_level * np.sqrt(2*np.log(t)/(tilde_noclick + 1))
+        if self.clip_ucb:
+            self.v_ucb = np.minimum(self.v_ucb, 0.9)
+            self.q_ucb = np.minimum(self.q_ucb, 0.9)
+
 
 if __name__ == '__main__':
-    env = ContextualEnv(seed=2023)
+    T = 1000
+
+    env = ContextualEnv(seed=2023,generator_cls=FixedContextGenerator)
+    model = UCBFixedContext(env=env,confidence_level= 0.1)
+    fixed_result = model.learn(timesteps=T)
+    fixed_regret = np.array(fixed_result[3]-fixed_result[1]).cumsum()
+
+    env = ContextualEnv(seed=2023,generator_cls=FixedContextGenerator)
     model = ContextualUCB(env=env)
-    _result = model.learn(timesteps=1000)
+    context_result = model.learn(timesteps=T)
+    context_regret = np.array(context_result[3]-context_result[1]).cumsum()
+    plt.figure()
+    plt.plot(fixed_regret,label = 'noncontextual alg')
+    plt.plot(context_regret,label = 'contextual alg')
+    plt.legend()
+    plt.show()
     raise RuntimeError('Stop here')
 
     import random
