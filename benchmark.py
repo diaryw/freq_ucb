@@ -1,6 +1,15 @@
 import numpy as np
 import math
-from base import RecommendationEnv, BaseAlgorithm, evaluate_sequence
+from copy import deepcopy
+import random
+from scipy.optimize import minimize
+from base import (
+    RecommendationEnv, 
+    BaseAlgorithm, 
+    evaluate_sequence, 
+    BaseContextualAlgorithm,
+    ContextualEnv,
+)
 from frequency import optimize, alg1_basic,regret_analysis
 import matplotlib.pyplot as plt
 
@@ -74,7 +83,172 @@ class EpsilonGreedy(BaseAlgorithm):
         if self.decaying:
             self.epsilon = np.min([1,self.c*self.num_message/(self.min_gap**2 * (self.env.time+1))])
 
+class ContextualEpsilonGreedy(BaseContextualAlgorithm):
+    """
+    EpsilonGreedy based algorithm for cascading bandit with delayed feedback
+
+    Parameters
+    ----------
+    epsilon : probability for randomly action
+    decaying : whether to use decaying epsilon
+    c : parameter for decaying factor
+    """
+    def __init__(self, env, epsilon:float=0.0, decaying:bool=False, c:float = 1.0,
+                 regularization_alpha:float=0.1,regularization_beta:float=0.1) -> None:
+        super().__init__(env)
+        self.epsilon = epsilon
+        self.optimize_fun = optimize
+        self.alpha_hat = np.zeros(shape=(self.num_maxsent+1,self.dim_user_feature))
+        self.beta_hat = np.ones(shape=(self.dim_message_feature))
+        self.alpha_default = deepcopy(self.alpha_hat)
+        self.beta_default = deepcopy(self.beta_hat)
+        self.regularization_alpha = regularization_alpha
+        self.regularization_beta = regularization_beta
+        self.decaying = decaying
+        self.c = c
+
+    def sigmoid(self,x):
+        return 1.0/(1.0+np.exp(-x))
+    
+    def _get_prob(self,_user_feature,_message_feature):
+        # for v
+        v_lin_hat = np.dot(_message_feature,self.beta_hat)
+        # compute probability
+        v_greedy = self.sigmoid(v_lin_hat)
+        # for q
+        q_lin_hat = np.dot(self.alpha_hat,_user_feature)
+        q_greedy = self.sigmoid(q_lin_hat)
+        return v_greedy,q_greedy
+
+    def _greedy_action(self):
+        def get_optimal_m(_user_feature,_message_feature,_reward_vector) -> int:
+            v_greedy,q_greedy = self._get_prob(_user_feature,_message_feature)
+            return optimize(v_greedy,_reward_vector,q_greedy,self.num_maxsent)[3]
+
+        def get_sequence(_user_feature, _message_feature, _reward_vector, _message_max) -> list:
+            v_greedy,q_greedy = self._get_prob(_user_feature,_message_feature)
+            return alg1_basic(v_greedy,_reward_vector,q_greedy,_message_max)[2]
+
+        return get_optimal_m, get_sequence
+
+    def _random_action(self):
+        def get_optimal_m(_user_feature,_message_feature,_reward_vector) -> int:
+            return np.random.randint(1,self.num_maxsent+1)
+        
+        def get_sequence(_user_feature, _message_feature, _reward_vector, _message_max) -> list:
+            return np.random.choice(self.num_message,size=(_message_max),replace=False)
+        
+        return get_optimal_m, get_sequence
+    
+    def action(self):
+        """
+        Returns
+        ----------
+        get_optimal_m : a function, input two features, per reward and get optimal m
+        get_sequence : a function, input two features, per reward, len of sequence,
+                and output optimal sequence of messages 
+        """
+        if self.env.time%100 ==0:
+            print('t=', self.env.time)
+        if np.random.rand()<self.epsilon:
+            return self._random_action()
+        else:
+            return self._greedy_action()
+
+    def MLE_alpha(self,m) -> np.ndarray:
+        if self.env.time==0:
+            return self.alpha_default[m]
+        self.m_index = self.m_record==m
+        # if there is some hat_Y_rj=1
+        # use MLE
+        def neg_LL_alpha(_alpha):
+            x_alpha = np.expand_dims((self.user_features@_alpha),axis=1)
+            full_LL = self.hat_Y_rj*x_alpha - np.log(1+np.exp(x_alpha))
+            neg_LL = -(full_LL*self.noclick_ind)[self.m_index].sum() + \
+                np.power(_alpha[1:],2).sum()*self.regularization_alpha
+            return neg_LL
+        MLE_model = minimize(neg_LL_alpha, self.alpha_hat[m])
+        return MLE_model.x
+
+    def MLE_beta(self) -> np.ndarray:
+        if self.env.time==0:
+            return self.beta_default
+        def neg_LL_beta(_beta):
+            w_beta = np.dot(self.message_features,_beta)
+            full_LL = self.Y_rj*w_beta - np.log(1+np.exp(w_beta))
+            neg_LL = -(full_LL*self.feedback_ind).sum() + \
+                np.power(_beta,2).sum()*self.regularization_beta
+            return neg_LL
+
+        MLE_model = minimize(neg_LL_beta, self.beta_hat)
+        return MLE_model.x
+
+    def update_param(self):
+        m_record, noclick_ind, hat_Y_rj, feedback_ind, Y_rj = self.env.statistic
+        user_features, message_features = self.env.features
+        # update alpha
+        self.m_record = np.array(m_record)
+        self.noclick_ind = np.array(noclick_ind)
+        self.hat_Y_rj = np.array(hat_Y_rj)
+        self.user_features = np.array(user_features)
+        # compute alpha by MLE
+        self.alpha_hat = np.array([self.MLE_alpha(m) for m in range(self.num_maxsent+1)])
+
+        # update beta
+        self.feedback_ind = np.array(feedback_ind)
+        self.Y_rj = np.array(Y_rj)
+        self.message_features = np.array(message_features)
+        # compute beta by MLE
+        self.beta_hat = self.MLE_beta()
+        if self.decaying:
+            self.epsilon = self.c*self.num_message/(self.env.time+1)
+
+class ContextualDecayingGreedy(ContextualEpsilonGreedy):
+    def __init__(self, env, c: float = 1, 
+                 regularization_alpha: float = 0.1, regularization_beta: float = 0.1) -> None:
+        super().__init__(
+            env = env, 
+            epsilon = 0, 
+            decaying = True, 
+            c = c, 
+            regularization_alpha = regularization_alpha, 
+            regularization_beta = regularization_beta,
+        )
+
+class ContextualETC(ContextualEpsilonGreedy):
+    def __init__(self, env, commit_time: int = 100,
+                 regularization_alpha: float = 0.1, regularization_beta: float = 0.1) -> None:
+        super().__init__(
+            env=env, 
+            epsilon=None, 
+            decaying=False, 
+            c=None, 
+            regularization_alpha = regularization_alpha, 
+            regularization_beta = regularization_beta,
+        )
+        self.commit_time = commit_time
+
+    def action(self):
+        """
+        Returns
+        ----------
+        get_optimal_m : a function, input two features, per reward and get optimal m
+        get_sequence : a function, input two features, per reward, len of sequence,
+                and output optimal sequence of messages 
+        """
+        current_time = self.env.time
+        if current_time % 100 ==0:
+            print('t=', current_time)
+        if current_time<self.commit_time:
+            return self._random_action()
+        else:
+            return self._greedy_action()
+
 if __name__ == '__main__':
+    env = ContextualEnv(seed=2023)
+    model = ContextualETC(env=env,commit_time=0)
+    _result = model.learn(timesteps=1000)
+    raise RuntimeError('Stop here')
     import random
     N = 35
     M = 7

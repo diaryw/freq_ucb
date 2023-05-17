@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --account=def-weiqi
 #SBATCH --ntasks=50
-#SBATCH --mem-per-cpu=2G
-#SBATCH --time=12:00:00
+#SBATCH --mem-per-cpu=4G
+#SBATCH --time=3:00:00
 #SBATCH --mail-user=zhangyanking00@gmail.com
 #SBATCH --mail-type=ALL
-#SBATCH --array=0-9
+#SBATCH --array=0-8
 #SBATCH --output=R-%x.%j.out
 #SBATCH --error=R-%x.%j.err\n
 

@@ -576,6 +576,20 @@ class BaseContextualAlgorithm(BaseAlgorithm):
         return current_rewards
     
     def learn(self, timesteps: int):
+        """
+        learn for timesteps and return cumulative rewards
+
+        Parameters
+        ----------
+        timesteps : total time horizon
+
+        Returns
+        ----------
+        rewards_record : the reward received per time
+        self.expected_payoff_record : the expected payoff for action per time
+        self.env.reward_customers : the rewards received from each customer
+        self.optimal_payoff_record : the optimal payoff at time t
+        """
         inst_rewards, expected, reward_customers = super().learn(timesteps)
         return np.array(inst_rewards), np.array(expected), \
             np.array(reward_customers), np.array(self.optimal_payoff_record[:timesteps])

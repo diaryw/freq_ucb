@@ -110,3 +110,41 @@ plt.title('Noncontextual Experiments')
 plt.savefig('result/regret_noncontextual.pdf',bbox_inches='tight',pad_inches=0.05)
 plt.show()
 
+### contextual
+def test_contextual_ucb():
+    method = 'ContextualUCB'
+    _data_df = pd.read_csv('experiments/contextual_{}.csv'.format(method))
+    _data_df = _data_df.sort_values(by=['gamma1','gamma2','run','time']).reset_index(drop=True)
+    # find T
+    T = _data_df['time'].max()
+    # find all param_val
+    unique_val = _data_df[['gamma1','gamma2']].copy().drop_duplicates().reset_index(drop=True)
+    # how to drop some values
+    unique_val = unique_val.drop([1,6,8,9])
+    # iterate over the unique values
+    avg_regret_data_list = []
+    param_list = []
+    plt.figure(figsize=(8,5))
+    for i in range(unique_val.shape[0]):
+        gamma1,gamma2 = unique_val.iloc[i]
+        data_df = _data_df[(_data_df['gamma1']==gamma1) & (_data_df['gamma2']==gamma2)].reset_index(drop=True)
+        data_regret = data_df['expected_regret'].values
+        data_regret = data_regret.reshape(-1,T)
+        avg_regret_data,lower_regret_data,upper_regret_data = mean_confidence_interval(data_regret)
+        avg_regret_data_list.append(avg_regret_data)
+        param_list.append({'gamma1':gamma1,'gamma2':gamma2})
+        plt.plot(avg_regret_data,label='gamma1={},gamma2={}'.format(gamma1,gamma2))
+    plt.legend(loc='best',fancybox=False)
+    plt.xlabel('Time')
+    plt.ylabel('Regret')
+    plt.title('Contextual Experiments')
+    plt.show()
+    # find the best parameter
+    best_param = param_list[np.argmin(np.array(avg_regret_data_list)[:,-1])]
+    optimal_data_df = _data_df[(_data_df['gamma1']==best_param['gamma1']) & (_data_df['gamma2']==best_param['gamma2'])].reset_index(drop=True)
+    # save the data for the best parameter
+    #optimal_data_df.to_csv('experiments/contextual_{}_best.csv'.format(method),index=False)
+    return best_param
+
+best_param = test_contextual_ucb()
+
