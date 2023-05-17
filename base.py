@@ -267,9 +267,10 @@ class ContextualEnv:
     seed : random seed for random generator in ContextGenerator()
     """
     def __init__(self,seed:int=2023,user_feature_range=None, message_feature_range = None,
-                 time_window:int = 200, generator_cls = ContextGenerator) -> None:
+                 time_window:int = 200, generator_cls = ContextGenerator, num_message:int = 25) -> None:
         self.context_generator = generator_cls(
             seed=seed,
+            num_message=num_message,
             user_feature_range = user_feature_range,
             message_feature_range = message_feature_range,
             )

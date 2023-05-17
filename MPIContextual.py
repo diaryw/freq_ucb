@@ -97,6 +97,38 @@ def run_and_save_fixedcontext(method_cls:callable,method_name:str,param_name:str
     # save 
     data_df.to_csv(save_filename,index=False,mode='a',header=not os.path.exists(save_filename))
     end = time()
+    print('Running time', end-start)
+
+
+def run_and_save_fixedcontext100(method_cls:callable,method_name:str,param_name:str,param_val):
+    start = time()
+    param_dict = {param_name: param_val}
+
+    env = ContextualEnv(seed=2023,generator_cls=FixedContextGenerator,num_message=100)
+    model = method_cls(env = env, **param_dict)
+    # result = [ , , ,]
+    result = model.learn(timesteps=T)
+    _, expected_payoff, realized_payoff, optimal_payoff = result
+    expected_regret = np.cumsum(optimal_payoff - expected_payoff)
+    realized_regret = np.cumsum(optimal_payoff - realized_payoff)
+    # save the data
+    _data = {
+        'run':MPItaskID,
+        'time':range(1,T+1),
+        'expected_payoff': expected_payoff,
+        'realized_payoff': realized_payoff,
+        'max_payoff': optimal_payoff,
+        'expected_regret': expected_regret,
+        'realized_regret': realized_regret,
+        param_name: param_val,
+    }
+    data_df = pd.DataFrame(_data)
+    # name of save file
+    save_filename = 'experiments' + os.sep + 'fixedcontext100_'+method_name + f'_task={MPItaskID}.csv'
+    # save 
+    data_df.to_csv(save_filename,index=False,mode='a',header=not os.path.exists(save_filename))
+    end = time()
+    print('Running time', end-start)
 
 
 gamma_list = [
@@ -183,5 +215,5 @@ if __name__=='__main__':
     kwargs_list_part = kwargs_list[(part_id)*len(kwargs_list)//num_parts:(part_id+1)*len(kwargs_list)//num_parts]
 
     for kwargs_ in kwargs_list_part:
-        run_and_save_fixedcontext(**kwargs_)
+        run_and_save_fixedcontext100(**kwargs_)
 

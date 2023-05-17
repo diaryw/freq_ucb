@@ -388,14 +388,14 @@ class UCBFixedContext(BaseContextualAlgorithm):
 
 
 if __name__ == '__main__':
-    T = 1000
+    T = 100
 
-    env = ContextualEnv(seed=2023,generator_cls=FixedContextGenerator)
+    env = ContextualEnv(seed=2023,generator_cls=FixedContextGenerator,num_message=100)
     model = UCBFixedContext(env=env,confidence_level= 0.1)
     fixed_result = model.learn(timesteps=T)
     fixed_regret = np.array(fixed_result[3]-fixed_result[1]).cumsum()
 
-    env = ContextualEnv(seed=2023,generator_cls=FixedContextGenerator)
+    env = ContextualEnv(seed=2023,generator_cls=FixedContextGenerator,num_message=100)
     model = ContextualUCB(env=env)
     context_result = model.learn(timesteps=T)
     context_regret = np.array(context_result[3]-context_result[1]).cumsum()

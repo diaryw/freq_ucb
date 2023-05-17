@@ -31,9 +31,13 @@ method_list = ['ContextualUCB']
 for method in method_list:
     merge_files(f'contextual_{method}')
 
-method_list = ['UCB']
+method_list = ['UCB','ContextualUCB']
 for method in method_list:
     merge_files(f'fixedcontext_{method}')
+
+method_list = ['UCB','ContextualUCB']
+for method in method_list:
+    merge_files(f'fixedcontext100_{method}')
 
 
 

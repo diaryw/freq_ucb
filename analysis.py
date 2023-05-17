@@ -5,21 +5,24 @@ import os
 import scipy
 from matplotlib.transforms import Bbox
 import seaborn as sns
+from copy import deepcopy
+
+save_bbox = Bbox([[0.1, 0], [5.55, 3.78]])
+use_expected = True
 
 param_for_method = {
     'OptimisticGreedy': 'initial_val',
     'EpsilonGreedy': 'epsilon',
     'DecayingEpsilonGreedy': 'c',
     'UCB': 'confidence_level',
-    #'DecayingUCB': 'confidence_level',
-    #'LinearDecayingUCB': 'confidence_level',
+    'ExploreThenCommit': 'commit_time',
+    'ContextualUCB': 'gamma1',
 }
 
-param_for_method_context = {
-    'ETC': 'commit_time',
-    'EpsilonGreedy': 'epsilon',
-    'DecayingGreedy': 'c',
-    'ContextualUCB': 'gamma1',
+lenged_prop = {
+    'fontsize':9.5,
+    'fancybox':True,
+    'frameon':False,
 }
 
 def mean_confidence_interval(data,confidence=0.95):
@@ -89,32 +92,48 @@ def plot_rewards_vs_param():
     plt.xlabel('Parameter Value')
     plt.ylabel('Total Rewards')
     plt.title('Cascading Bandit Experiment')
-    plt.savefig('result/testparam.pdf',bbox_inches='tight',pad_inches=0.05)
+    plt.savefig('result/testparam.pdf',bbox_inches=save_bbox,pad_inches=0.05)
     plt.show()
 
 # find optimal parameters for each algorithm
 #plot_rewards_vs_param()
-
 # plot regret for different methods vs time
+common_prop = {'linewidth':1.5,'markersize':3,}
+plot_prop = {
+    'UCB' : {'linestyle':'-','marker':'s','color':'#50567c'},
+    'OptimisticGreedy': {'linestyle':'--','marker':'o','color':'#df7a5e'},
+    'EpsilonGreedy': {'linestyle':'-.','marker':'^','color':'#619e80'},
+    'DecayingEpsilonGreedy': {'linestyle':':','marker':'v','color':'#d99426'},
+}
+plot_prop['ContextualUCB'] = plot_prop['UCB']
+plot_prop['ExploreThenCommit'] = plot_prop['OptimisticGreedy']
+fill_between_prop = {
+    'UCB': {'facecolor':'#464c6d',},
+    'OptimisticGreedy': {'facecolor':'#eeb9aa',},
+    'EpsilonGreedy': {'facecolor':'#82b29a',},
+    'DecayingEpsilonGreedy': {'facecolor':'#f2cc8e',},
+}
+fill_between_prop['ContextualUCB'] = fill_between_prop['UCB']
+fill_between_prop['ExploreThenCommit'] = fill_between_prop['OptimisticGreedy']
+
 method_param = {
     'OptimisticGreedy': 0.9,
-    'EpsilonGreedy': 0.01,
     'DecayingEpsilonGreedy': 3.0,
+    'EpsilonGreedy': 0.01,
     'UCB': 0.2,
-    #'DecayingUCB': 1.0,
-    #'LinearDecayingUCB': 400,
 }
-data_for_plot = process_data_for_plot(method_param,use_expected=False)
+data_for_plot = process_data_for_plot(method_param,use_expected=use_expected)
+#data_for_plot_noncontextual['realized'] = data_for_plot
 # plot
-plt.figure(figsize=(8,5))
+plt.figure(figsize=(6,4))
 for data in data_for_plot:
-    plt.plot(data['avg'],label=data['method'])
-    plt.fill_between(range(T),data['lb'],data['ub'],alpha=0.1)
-plt.legend(loc='best',fancybox=False)
-plt.xlabel('Time')
+    plt.plot(data['avg'],label=data['method'],markevery=5000,**plot_prop[data['method']],**common_prop)
+    plt.fill_between(range(T),data['lb'],data['ub'],alpha = 0.15,**fill_between_prop[data['method']])
+plt.legend(loc='best',**lenged_prop)
+plt.xlabel('Time Steps')
 plt.ylabel('Regret')
-plt.title('Noncontextual Experiments')
-plt.savefig('result/regret_noncontextual.pdf',bbox_inches='tight',pad_inches=0.05)
+plt.title('Noncontextual Algorithms Performance Experiment')
+plt.savefig('result/regret_noncontextual.pdf',bbox_inches=save_bbox,pad_inches=0.05)
 plt.show()
 
 ### contextual
@@ -158,9 +177,9 @@ def test_contextual_ucb():
 best_param = test_contextual_ucb()
 
 
-def read_data_contextual(method,param_val,use_expected=True):
-    _data_df = pd.read_csv('experiments/contextual_{}.csv'.format(method))
-    param_name = param_for_method_context[method]
+def read_data_general(experiment_name:str,method,param_val,use_expected=True):
+    _data_df = pd.read_csv('experiments/{}_{}.csv'.format(experiment_name,method))
+    param_name = param_for_method[method]
     # sort by param_val and reindex
     _data_df = _data_df.sort_values(by=[param_name,'run','time']).reset_index(drop=True)
     # find T , the number of time steps
@@ -175,7 +194,7 @@ def read_data_contextual(method,param_val,use_expected=True):
     avg_regret_data,lower_regret_data,upper_regret_data = mean_confidence_interval(data_regret)
     return avg_regret_data,lower_regret_data,upper_regret_data
 
-def process_data_for_plot_context(method_param :dict, use_expected = False):
+def process_data_for_plot_general(experiment_name:str,method_param :dict, use_expected = False):
     output = []
     for method,param_val in method_param.items():
         tmp_dict = {
@@ -183,7 +202,7 @@ def process_data_for_plot_context(method_param :dict, use_expected = False):
             'param_val': param_val,
             'use_expected': use_expected,
         }
-        _avg, _lb, _ub = read_data_contextual(method,param_val,use_expected)
+        _avg, _lb, _ub = read_data_general(experiment_name,method,param_val,use_expected)
         tmp_dict['avg'] = _avg
         tmp_dict['lb'] = _lb
         tmp_dict['ub'] = _ub
@@ -192,21 +211,100 @@ def process_data_for_plot_context(method_param :dict, use_expected = False):
 
 # plot regret for different methods vs time
 method_param = {
-    'ContextualUCB': 1.0,
+    'ExploreThenCommit': 100,
+    'DecayingEpsilonGreedy': 1,
     'EpsilonGreedy': 0.05,
-    'DecayingGreedy': 1,
-    'ETC': 100,
+    'ContextualUCB': 1e-5,
 }
-data_for_plot = process_data_for_plot_context(method_param,use_expected=False)
+data_for_plot = process_data_for_plot_general('contextual',method_param,use_expected=use_expected)
 # plot
-plt.figure(figsize=(8,5))
+plt.figure(figsize=(6,4))
 for data in data_for_plot:
-    plt.plot(data['avg'][:T],label=data['method'])
-    plt.fill_between(range(T),data['lb'][:T],data['ub'][:T],alpha=0.1)
-plt.legend(loc='best',fancybox=False)
-plt.xlabel('Time')
+    plt.plot(data['avg'][:T],label=data['method'],markevery=500,**plot_prop[data['method']],**common_prop)
+    plt.fill_between(range(T),data['lb'][:T],data['ub'][:T],alpha = 0.15,**fill_between_prop[data['method']])
+plt.legend(loc='best',**lenged_prop)
+plt.xlabel('Time Steps')
 plt.ylabel('Regret')
-plt.title('Contextual Experiments')
-plt.savefig('result/regret_contextual.pdf',bbox_inches='tight',pad_inches=0.05)
+plt.title('Contextual Algorithms Performance Experiment')
+plt.savefig('result/regret_contextual.pdf',bbox_inches=save_bbox,pad_inches=0.05)
 plt.show()
 
+
+
+plot_prop_fixed = deepcopy(plot_prop)
+plot_prop_fixed['UCB'] = plot_prop['OptimisticGreedy']
+fill_between_prop_fixed = deepcopy(fill_between_prop)
+fill_between_prop_fixed['UCB'] = fill_between_prop['OptimisticGreedy']
+method_param = {
+    'UCB': 0.2,
+    'ContextualUCB': 1e-2,
+}
+data_for_plot = process_data_for_plot_general('fixedcontext',method_param,use_expected=use_expected)
+# plot
+plt.figure(figsize=(6,4))
+for data in data_for_plot:
+    plt.plot(data['avg'][:T],label=data['method'],markevery = 500,**common_prop,**plot_prop_fixed[data['method']])
+    plt.fill_between(range(T),data['lb'][:T],data['ub'][:T],alpha=0.15,**fill_between_prop_fixed[data['method']])
+plt.legend(loc='best',**lenged_prop)
+plt.xlabel('Time Steps')
+plt.ylabel('Regret')
+plt.title('ContextualUCB vs UCB with Fixed Context Feature (N=25)')
+plt.savefig('result/fixedcontext25.pdf',bbox_inches=save_bbox,pad_inches=0.05)
+plt.show()
+
+method_param = {
+    'UCB': 0.1,
+    'ContextualUCB': 1e-2,
+}
+data_for_plot = process_data_for_plot_general('fixedcontext100',method_param,use_expected=use_expected)
+# plot
+plt.figure(figsize=(6,4))
+for data in data_for_plot:
+    plt.plot(data['avg'][:T],label=data['method'],markevery = 500,**common_prop,**plot_prop_fixed[data['method']])
+    plt.fill_between(range(T),data['lb'][:T],data['ub'][:T],alpha=0.15,**fill_between_prop_fixed[data['method']])
+plt.legend(loc='best',**lenged_prop)
+plt.xlabel('Time Steps')
+plt.ylabel('Regret')
+plt.title('ContextualUCB vs UCB with Fixed Context Feature (N=100)')
+plt.savefig('result/fixedcontext100.pdf',bbox_inches=save_bbox,pad_inches=0.05)
+plt.show()
+
+
+N_to_name = {100:'fixedcontext100',25:'fixedcontext'}
+N_diff_plot_prop = {
+    25: {'linestyle':'-','marker':'s','linewidth':1.5},
+    100: {'linestyle':':','marker':'^','linewidth':1.4,'markerfacecolor':'none'},
+}
+method_diff_plot_prop = {
+    'ContextualUCB':{'color':'#50567c'},
+    'UCB':{'color':'#df7a5e'},
+}
+method_diff_fill_prop = {
+    'ContextualUCB':{'facecolor':'#5a618c','alpha':0.1},
+    'UCB':{'facecolor':'#eeb9aa','alpha':0.2},
+}
+method_param_fixed = {
+    100:{'UCB': 0.1,'ContextualUCB': 1e-2,},
+    25:{'UCB': 0.2,'ContextualUCB': 1e-2,},
+}
+plt.figure(figsize=(6,4))
+for N,filename in N_to_name.items():
+    _data_for_plot = process_data_for_plot_general(filename,method_param_fixed[N],use_expected=use_expected)
+    # plot
+    for data in _data_for_plot:
+        plt.plot(data['avg'][:T],
+                 label=f'N={N}, '+data['method'],
+                 markevery = 500,
+                 markersize = 4,
+                 **method_diff_plot_prop[data['method']],
+                 **N_diff_plot_prop[N]
+                 )
+        plt.fill_between(range(T),data['lb'][:T],data['ub'][:T],
+                         **method_diff_fill_prop[data['method']]
+                         )
+plt.legend(loc='best',**lenged_prop)
+plt.xlabel('Time')
+plt.ylabel('Regret')
+plt.title('ContextualUCB vs UCB with Fixed Context Feature')
+plt.savefig('result/fixedcontext.pdf',bbox_inches=save_bbox,pad_inches=0.05)
+plt.show()
