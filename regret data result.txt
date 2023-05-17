@@ -1,0 +1,19 @@
+Experiment 1,
+OptimisticGreedy ,avg regret= 2134.7208311231866 ,lb= 1747.7609536026362 ,ub= 2521.680708643737
+DecayingEpsilonGreedy ,avg regret= 1625.4751142005491 ,lb= 1416.2938181570082 ,ub= 1834.65641024409
+EpsilonGreedy ,avg regret= 771.3402932409299 ,lb= 729.4665490983733 ,ub= 813.2140373834865
+UCB ,avg regret= 550.1389065574714 ,lb= 454.7070422871832 ,ub= 645.5707708277596
+
+Experiment 2,
+ExploreThenCommit ,avg regret= 439.5264072122261 ,lb= 416.35799292383143 ,ub= 462.6948215006208
+DecayingEpsilonGreedy ,avg regret= 515.3107499990598 ,lb= 498.42815351679474 ,ub= 532.1933464813249
+EpsilonGreedy ,avg regret= 572.5981752586409 ,lb= 554.3564405341574 ,ub= 590.8399099831245
+ContextualUCB ,avg regret= 293.94243299578454 ,lb= 273.84802886074516 ,ub= 314.0368371308239
+
+Experiment 3,
+N=100, UCB ,avg regret= 1451.9473363904667 ,lb= 1317.2714604873133 ,ub= 1586.62321229362
+N=100, ContextualUCB ,avg regret= 798.9369515852744 ,lb= 681.0470463696058 ,ub= 916.826856800943
+N=25, UCB ,avg regret= 441.89475153315857 ,lb= 417.30535834113033 ,ub= 466.4841447251868
+N=25, ContextualUCB ,avg regret= 280.726060542072 ,lb= 246.28024971944163 ,ub= 315.1718713647023
+
+Note: 'avg regret' is the mean value for 100 (or 50 for Experiment 2&3) independent runs, 'lb' is the lower bound for 95% confidence interval, 'ub' is the upper bound for 95% confidence interval.
