@@ -64,6 +64,9 @@ class RecommendationEnv:
     def get_feedback(self) -> float:
         """return rewards received in current time
         """
+        # dict to record the current feedback
+        self.feedback_observed = {'message':[],'response':[]}
+
         if len(self.active_customers)==0:
             return 0
         # total reward for current time
@@ -74,6 +77,10 @@ class RecommendationEnv:
                 message_id = _customer['sent'][-1]
                 response = self._generate_feedback(_customer)
                 self.tot_fb[message_id] += 1
+
+                # record the feedback for thompson sampling
+                self.feedback_observed['message'].append(message_id)
+                self.feedback_observed['response'].append(response)
 
                 # click
                 if response == 1:
@@ -419,6 +426,9 @@ class ContextualEnv:
         self.feedback_indicator = []
         self.Y_rj = []
         """
+        # dict to record the current feedback
+        self.feedback_observed = {'message':[],'response':[],'message_feature':[]}
+
         if len(self.active_customers)==0:
             return 0
         # total reward for current time
@@ -435,6 +445,11 @@ class ContextualEnv:
                 # update V_t
                 tmp_m_feature = _customer['message_feature'][message_id]
                 self.V_message += np.dot(tmp_m_feature.reshape((-1,1)),tmp_m_feature.reshape((1,-1)))
+
+                # record the feedback for thompson sampling
+                self.feedback_observed['message'].append(message_id)
+                self.feedback_observed['response'].append(response)
+                self.feedback_observed['message_feature'].append(tmp_m_feature)
 
                 # click
                 if response == 1:

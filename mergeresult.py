@@ -40,4 +40,7 @@ for method in method_list:
     merge_files(f'fixedcontext100_{method}')
 
 
+#merge_files(f'noncontextual_TS-Cascade')
+
+merge_files(f'contextual_LinTS-Cascade')
 

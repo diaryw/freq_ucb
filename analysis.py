@@ -17,6 +17,8 @@ param_for_method = {
     'UCB': 'confidence_level',
     'ExploreThenCommit': 'commit_time',
     'ContextualUCB': 'gamma1',
+    'TS-Cascade' : 'std_c',
+    'LinTS-Cascade' : 'std_c',
 }
 
 lenged_prop = {
@@ -98,27 +100,32 @@ def plot_rewards_vs_param():
 # find optimal parameters for each algorithm
 #plot_rewards_vs_param()
 # plot regret for different methods vs time
-common_prop = {'linewidth':1.5,'markersize':3,}
+common_prop = {'linewidth':1.5,'markersize':3.8,}
 plot_prop = {
     'UCB' : {'linestyle':'-','marker':'s','color':'#50567c'},
     'OptimisticGreedy': {'linestyle':'--','marker':'o','color':'#df7a5e'},
-    'EpsilonGreedy': {'linestyle':'-.','marker':'^','color':'#619e80'},
+    'EpsilonGreedy': {'linestyle':'-.','marker':'^','color':'#46ABCD'},
     'DecayingEpsilonGreedy': {'linestyle':':','marker':'v','color':'#d99426'},
+    'TS-Cascade': {'linestyle':(0, (5, 1, 1, 1, 1, 1)),'marker':'X','color':'#619e80'},
 }
 plot_prop['ContextualUCB'] = plot_prop['UCB']
 plot_prop['ExploreThenCommit'] = plot_prop['OptimisticGreedy']
+plot_prop['LinTS-Cascade'] = plot_prop['TS-Cascade']
 fill_between_prop = {
     'UCB': {'facecolor':'#464c6d',},
     'OptimisticGreedy': {'facecolor':'#eeb9aa',},
-    'EpsilonGreedy': {'facecolor':'#82b29a',},
+    'EpsilonGreedy': {'facecolor':'#42C0E2',},
     'DecayingEpsilonGreedy': {'facecolor':'#f2cc8e',},
+    'TS-Cascade': {'facecolor':'#82b29a',},
 }
 fill_between_prop['ContextualUCB'] = fill_between_prop['UCB']
 fill_between_prop['ExploreThenCommit'] = fill_between_prop['OptimisticGreedy']
+fill_between_prop['LinTS-Cascade'] = fill_between_prop['TS-Cascade']
 
 method_param = {
     'OptimisticGreedy': 0.9,
     'DecayingEpsilonGreedy': 3.0,
+    'TS-Cascade': 0.2,
     'EpsilonGreedy': 0.01,
     'UCB': 0.2,
 }
@@ -213,6 +220,7 @@ def process_data_for_plot_general(experiment_name:str,method_param :dict, use_ex
 method_param = {
     'ExploreThenCommit': 100,
     'DecayingEpsilonGreedy': 1,
+    'LinTS-Cascade': 1e-2,
     'EpsilonGreedy': 0.05,
     'ContextualUCB': 1e-5,
 }

@@ -3,6 +3,7 @@ import math
 from copy import deepcopy
 import random
 from scipy.optimize import minimize
+from scipy.linalg import sqrtm
 from base import (
     RecommendationEnv, 
     BaseAlgorithm, 
@@ -243,6 +244,172 @@ class ContextualETC(ContextualEpsilonGreedy):
             return self._random_action()
         else:
             return self._greedy_action()
+
+class TS_Cascade(BaseAlgorithm):
+    """
+    Thompson Sampling for Cascading Bandits with Gaussian Update
+    https://dl.acm.org/doi/abs/10.5555/3546258.3546476
+
+    Parameters
+    ----------
+    std_c : the constant to scale the standard deviation of Thompson sample
+    """
+    def __init__(self,env,std_c: float = 1.0) -> None:
+        super().__init__(env=env)
+        self.std_c = std_c
+        self.inf = 1e-3
+
+        # prob of thompson sample
+        self.w_t = np.zeros(self.num_message)
+        self.N_t = np.zeros(self.num_message)
+
+        # q: prob of remaining in the system
+        # the first element of q is not used
+        self.q_hat = np.full(self.num_maxsent + 1, self.inf)
+
+    def action(self):
+        """
+        take actions
+
+        Return
+        ----------
+        optimal_m : the optimal number of messages to send to new customer
+        get_sequence: callable, input number and output optimal sequence of messages 
+        """
+        t = self.env.time + 1
+        # construct Thompson sample
+        # line 3
+        Z_t = np.random.normal(loc=0,scale=1)
+        # line 5, empirical variance
+        var_t = self.w_t*(1-self.w_t)
+        # line 6, std of thompson sample
+        sigma_t = np.maximum(np.sqrt(var_t*np.log(t+1)/(self.N_t+1)),np.log(t+1)/(self.N_t+1))
+        # line 7, Thompson sample
+        theta_t = self.w_t + Z_t * sigma_t * self.std_c
+        ### Warning: theta_t is probabily negative
+        optimal_m = optimize(theta_t,self.reward_per_message,self.q_hat,self.num_maxsent)[3]
+        def get_sequence(m):
+            return alg1_basic(theta_t,self.reward_per_message,self.q_hat,m)[2]
+        return optimal_m, get_sequence
+
+    def update_param(self) -> None:
+        total_fb, total_click, tilde_noclick, tilde_leave = self.env.statistic
+        n_continue = tilde_noclick - tilde_leave
+        # estimate q_hat, probability of continue
+        self.q_hat = np.divide(n_continue, tilde_noclick, out=self.q_hat, where=(tilde_noclick!=0))
+        self.q_hat = np.maximum(self.q_hat,self.inf)
+        # update w_t and N_t
+        feedback_observed = self.env.feedback_observed
+        for arr_idx in range(len(feedback_observed['message'])):
+            message_id = feedback_observed['message'][arr_idx]
+            # if response = -1, change it to 0
+            W_fb = max(feedback_observed['response'][arr_idx],0)
+            self.w_t[message_id] = (self.N_t[message_id]*self.w_t[message_id] + W_fb)\
+                /(self.N_t[message_id] + 1)
+            self.N_t[message_id] += 1
+
+class LinTS_Cascade(BaseContextualAlgorithm):
+    """
+    Linear generalization Thompson Sampling for Cascading Bandits with Gaussian Update
+    https://dl.acm.org/doi/abs/10.5555/3546258.3546476
+
+    Parameters
+    ----------
+    std_c : the constant to scale the standard deviation of Thompson sample
+    """
+    def __init__(self, env,  std_c:float = 1.0, regularization_alpha:float=0.1) -> None:
+        super().__init__(env)
+        self.std_c = std_c
+        self.inf = 1e-3
+        self.R = 0.5
+
+        self.optimize_fun = optimize
+
+        # initialization for prob q
+        self.alpha_hat = np.zeros(shape=(self.num_maxsent+1,self.dim_user_feature))
+        self.alpha_default = deepcopy(self.alpha_hat)
+        self.regularization_alpha = regularization_alpha
+
+        # initialization for thompson sampling
+        self.b_t = np.zeros(self.dim_message_feature)
+        self.M_t = np.eye(self.dim_message_feature)
+        self.psi_hat = np.linalg.inv(self.M_t) @ self.b_t
+
+    def sigmoid(self,x):
+        return 1.0/(1.0+np.exp(-x))
+
+    def _get_prob(self,_user_feature,_message_feature):
+        # compute probability
+        v_prob = np.dot(_message_feature,self.rho_t)
+        # for q
+        q_lin_hat = np.dot(self.alpha_hat,_user_feature)
+        q_prob = self.sigmoid(q_lin_hat)
+        return v_prob,q_prob
+
+    def action(self):
+        """
+        Returns
+        ----------
+        get_optimal_m : a function, input two features, per reward and get optimal m
+        get_sequence : a function, input two features, per reward, len of sequence,
+                and output optimal sequence of messages 
+        """
+        t = self.env.time + 1
+        # line 4, random variable 
+        xi = np.random.normal(loc=0,scale=1,size = self.dim_message_feature)
+        # line 5, construct thompson sample
+        v_t = 3*self.R*np.sqrt(self.dim_message_feature*np.log(t+1))
+        self.rho_t = self.psi_hat + self.std_c * v_t * np.sqrt(self.num_maxsent) * (np.linalg.inv(sqrtm(self.M_t)) @ xi)
+        
+        def get_optimal_m(_user_feature,_message_feature,_reward_vector) -> int:
+            v_prob,q_prob = self._get_prob(_user_feature,_message_feature)
+            return optimize(v_prob,_reward_vector,q_prob,self.num_maxsent)[3]
+
+        def get_sequence(_user_feature, _message_feature, _reward_vector, _message_max) -> list:
+            v_prob,q_prob = self._get_prob(_user_feature,_message_feature)
+            return alg1_basic(v_prob,_reward_vector,q_prob,_message_max)[2]
+
+        return get_optimal_m, get_sequence
+
+
+    def MLE_alpha(self,m) -> np.ndarray:
+        if self.env.time==0:
+            return self.alpha_default[m]
+        self.m_index = self.m_record==m
+        # if there is some hat_Y_rj=1
+        # use MLE
+        def neg_LL_alpha(_alpha):
+            x_alpha = np.expand_dims((self.user_features@_alpha),axis=1)
+            full_LL = self.hat_Y_rj*x_alpha - np.log(1+np.exp(x_alpha))
+            neg_LL = -(full_LL*self.noclick_ind)[self.m_index].sum() + \
+                np.power(_alpha[1:],2).sum()*self.regularization_alpha
+            return neg_LL
+        MLE_model = minimize(neg_LL_alpha, self.alpha_hat[m])
+        return MLE_model.x
+
+    def update_param(self):
+        m_record, noclick_ind, hat_Y_rj, feedback_ind, Y_rj = self.env.statistic
+        user_features, message_features = self.env.features
+        mat_M, mat_V = self.env.covariance
+        # update alpha
+        self.m_record = np.array(m_record)
+        self.noclick_ind = np.array(noclick_ind)
+        self.hat_Y_rj = np.array(hat_Y_rj)
+        self.user_features = np.array(user_features)
+        # compute alpha by MLE
+        self.alpha_hat = np.array([self.MLE_alpha(m) for m in range(self.num_maxsent+1)])
+
+        # update M_t, b_t for prob v
+        feedback_observed = self.env.feedback_observed
+        for arr_idx in range(len(feedback_observed['message'])):
+            message_id = feedback_observed['message'][arr_idx]
+            # if response = -1, change it to 0
+            W_fb = max(feedback_observed['response'][arr_idx],0)
+            tmp_m_feature = np.array(feedback_observed['message_feature'][arr_idx])
+            self.M_t = mat_V + np.eye(self.dim_message_feature)
+            self.b_t += W_fb*tmp_m_feature
+        self.psi_hat = np.linalg.inv(self.M_t) @ self.b_t
+
 
 if __name__ == '__main__':
     env = ContextualEnv(seed=2023)
